@@ -27,7 +27,7 @@ if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
 
 
 
-setup(name = "pulse_assimilator",
+setup(name = "pulse_adjoint",
       version = "{0}.{1}".format(major, minor),
       description = """
       An adjointable cardiac mechanics data assimilator.
@@ -39,5 +39,5 @@ setup(name = "pulse_assimilator",
       # dependency_links=dependency_links,
       packages = ["pulse_assimilator"],
       # package_data={'pulse_adjoint.example_meshes':  ["*.h5", "*.yml"]},
-      package_dir = {"pulse_assimilator": "pulse_assimilator"},
+      package_dir = {"pulse_adjoint": "pulse_adjoint"},
       )
