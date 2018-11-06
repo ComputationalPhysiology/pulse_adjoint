@@ -2,7 +2,7 @@ import dolfin
 import dolfin_adjoint
 
 import pulse
-import pulse_assimilator
+import pulse_adoint
 
 
 def create_problem():
@@ -24,8 +24,8 @@ def create_problem():
     n0 = dolfin_adjoint.Function(geometry.n0.function_space())
     n0.assign(geometry.n0)
 
-   
-    
+
+
     material = pulse.HolzapfelOgden(activation=activation,
                                     parameters=matparams,
                                     f0=f0,
@@ -75,19 +75,19 @@ def main():
     pressure = [0.1]
     volume = [3.0]
 
-    data = pulse_assimilator.ClinicalData(pressure=pressure,
-                                          volume=volume)
+    data = pulse_adjoint.ClinicalData(pressure=pressure,
+                                      volume=volume)
 
-    assimilator = pulse_assimilator.Assimilator(problem,
-                                                data,
-                                                control)
+    assimilator = pulse_adjoint.Assimilator(problem,
+                                            data,
+                                            control)
 
     optimal_control = assimilator.assimilate()
 
-    
+
     from IPython import embed; embed()
     exit()
-    
+
 
 if __name__ == "__main__":
     main()

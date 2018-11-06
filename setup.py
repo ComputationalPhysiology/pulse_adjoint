@@ -37,7 +37,7 @@ setup(name = "pulse_adjoint",
       license="LGPL version 3 or later",
       # install_requires=REQUIREMENTS,
       # dependency_links=dependency_links,
-      packages = ["pulse_assimilator"],
+      packages = ["pulse_adjoint"],
       # package_data={'pulse_adjoint.example_meshes':  ["*.h5", "*.yml"]},
       package_dir = {"pulse_adjoint": "pulse_adjoint"},
       )
