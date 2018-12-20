@@ -2,7 +2,7 @@ import dolfin
 import dolfin_adjoint
 
 import pulse
-import pulse_adoint
+import pulse_adjoint
 
 
 def create_problem():
@@ -14,7 +14,10 @@ def create_problem():
     activation.assign(dolfin_adjoint.Constant(0.0))
     matparams = pulse.HolzapfelOgden.default_parameters()
 
-    control = dolfin_adjoint.Constant(1.0, name="matparam control (a)")
+    V = dolfin.FunctionSpace(geometry.mesh, 'R', 0)
+    control = dolfin_adjoint.Function(V)
+    control.assign(dolfin_adjoint.Constant(1.0))
+    # control = dolfin_adjoint.Constant(1.0, name="matparam control (a)")
     matparams['a'] = control
 
     f0 = dolfin_adjoint.Function(geometry.f0.function_space())
@@ -24,13 +27,11 @@ def create_problem():
     n0 = dolfin_adjoint.Function(geometry.n0.function_space())
     n0.assign(geometry.n0)
 
-
-
     material = pulse.HolzapfelOgden(activation=activation,
                                     parameters=matparams,
                                     f0=f0,
-                                    s0=s0,#dolfin_adjoint.Function(geometry.s0),
-                                    n0=n0)#dolfin_adjoint.Function(geometry.n0))
+                                    s0=s0,
+                                    n0=n0)
 
     # LV Pressure
     lvp = dolfin_adjoint.Constant(0.0, name="lvp")
@@ -48,9 +49,9 @@ def create_problem():
     # 0 in V.sub(0) refers to x-direction, which is the longitudinal direction
     def fix_basal_plane(W):
         V = W if W.sub(0).num_sub_spaces() == 0 else W.sub(0)
-        bc = dolfin_adjoint.DirichletBC(V.sub(0),
-                                        dolfin.Constant(0.0, name="fix_base"),
-                                        geometry.ffun, geometry.markers["BASE"][0])
+        bc = dolfin.DirichletBC(V.sub(0),
+                                dolfin.Constant(0.0, name="fix_base"),
+                                geometry.ffun, geometry.markers["BASE"][0])
         return bc
 
     dirichlet_bc = [fix_basal_plane]
@@ -68,15 +69,18 @@ def create_problem():
 
 def main():
 
-    pulse.annotate.annotate = True
+    pulse.annotation.annotate = True
     # dolfin_adjoint.continue_annotation()
     problem, control = create_problem()
 
     pressure = [0.1]
     volume = [3.0]
 
-    data = pulse_adjoint.ClinicalData(pressure=pressure,
-                                      volume=volume)
+
+
+
+    # data = pulse_adjoint.ClinicalData(pressure=pressure,
+    #                                   volume=volume)
 
     assimilator = pulse_adjoint.Assimilator(problem,
                                             data,

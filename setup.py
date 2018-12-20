@@ -38,6 +38,5 @@ setup(name = "pulse_adjoint",
       # install_requires=REQUIREMENTS,
       # dependency_links=dependency_links,
       packages = ["pulse_adjoint"],
-      # package_data={'pulse_adjoint.example_meshes':  ["*.h5", "*.yml"]},
       package_dir = {"pulse_adjoint": "pulse_adjoint"},
       )

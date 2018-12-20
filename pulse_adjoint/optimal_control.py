@@ -12,13 +12,13 @@ that can be used to solve the optimal control problem
 
 **Example of usage**::
 
-  # Suppose you allready have initialized you reduced functional (`rd`)
+  # Suppose you allready have initialized you reduced functional (`J`)
   # with the control parameter (`paramvec`)
   # Look at run_optimization.py to see how to do this.
 
   # Initialize the paramters
   params = setup_application_parameters()
-  
+
   # params["Optimization_parameters"]["opt_type"] = "pyOpt_slsqp"
   # params["Optimization_parameters"]["opt_type"] = "scipy_l-bfgs-b"
   params["Optimization_parameters"]["opt_type"] = "scipy_slsqp"
@@ -26,9 +26,9 @@ that can be used to solve the optimal control problem
   # Create the optimal control problem
   oc_problem = OptimalControl()
   # Build the problem
-  oc_problem.build_problem(params, rd, paramvec)
+  oc_problem.build_problem(params, J, paramvec)
   # Solve the optimal control problem
-  rd, opt_result = oc_problem.solve()
+  J, opt_result = oc_problem.solve()
 
 """
 # c) 2001-2017 Simula Research Laboratory ALL RIGHTS RESERVED
@@ -57,21 +57,26 @@ that can be used to solve the optimal control problem
 # SIMULA RESEARCH LABORATORY MAKES NO REPRESENTATIONS AND EXTENDS NO
 # WARRANTIES OF ANY KIND, EITHER IMPLIED OR EXPRESSED, INCLUDING, BUT
 # NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS
+from collections import namedtuple
 import numpy as np
 from dolfin import Timer
-# from .utils import print_line, logger
-from . import config
+
+from . import config, make_logger
 from pulse.numpy_mpi import gather_broadcast
 
+logger = make_logger(__name__, 10)
+
+optimization_results = namedtuple('optimization_results', 'initial_control, optimal_control, run_time')
 
 try:
     import scipy
     from scipy.optimize import minimize as scipy_minimize
     from scipy.optimize import minimize_scalar as scipy_minimize_1d
+
     has_scipy = True
     from distutils.version import StrictVersion
-    has_scipy016 = StrictVersion(scipy.version.version) \
-        >= StrictVersion('0.16')
+
+    has_scipy016 = StrictVersion(scipy.version.version) >= StrictVersion("0.16")
 
 except ImportError:
     has_scipy = False
@@ -79,6 +84,7 @@ except ImportError:
 
 try:
     import pyipopt
+
     has_pyipopt = True
 
 except ImportError:
@@ -86,14 +92,16 @@ except ImportError:
 
 try:
     import moola
+
     has_moola = True
 except ImportError:
     has_moola = False
 
 try:
     import pyOpt
+
     has_pyOpt = True
-    
+
 except ImportError:
     has_pyOpt = False
 
@@ -105,25 +113,26 @@ class MyCallBack(object):
 
     This makes sure it's being used.
     """
-    def __init__(self, rd, tol, max_iter):
+
+    def __init__(self, J, tol, max_iter):
 
         self.ncalls = 0
-        self.rd = rd
+        self.J = J
         self.opt_funcvalues = []
 
     def __call__(self, x):
 
         self.ncalls += 1
 
-        grad_norm = None if len(self.rd.grad_norm_scaled) == 0 \
-            else self.rd.grad_norm_scaled[-1]
+        # grad_norm = (
+        #     None if len(self.J.grad_norm_scaled) == 0 else self.J.grad_norm_scaled[-1]
+        # )
+        #
+        # func_value = self.J.forwaJ_result.functional_value
+        # self.opt_funcvalues.append(func_value)
+        # self.J.opt_funcvalues = self.opt_funcvalues
 
-        func_value = self.rd.for_res["func_value"]
-        self.opt_funcvalues.append(func_value)
-        self.rd.opt_funcvalues = self.opt_funcvalues
-
-        logger.info(print_line(self.rd.for_res, self.ncalls,
-                               grad_norm, func_value))
+        # logger.info(print_line(self.J.for_res, self.ncalls, grad_norm, func_value))
 
 
 def minimize_1d(f, x0, **kwargs):
@@ -192,18 +201,20 @@ def get_ipopt_options(rd, lb, ub, tol, max_iter, **kwargs):
     J = rd.__call__
     dJ = rd.derivative
 
-    nlp = pyipopt.create(ncontrols,         # length of control vector
-                         lb,                # lower bounds on control vector
-                         ub,                # upper bounds on control vector
-                         0,                 # number of constraints
-                         clb,               # lower bounds on constraints,
-                         cub,               # upper bounds on constraints,
-                         0,                 # number of nonzeros in the constraint Jacobian
-                         0,                 # number of nonzeros in the Hessian
-                         J,                 # to evaluate the functional
-                         dJ,                # to evaluate the gradient
-                         fun_g,             # to evaluate the constraints
-                         jac_g)             # to evaluate the constraint Jacobian
+    nlp = pyipopt.create(
+        ncontrols,  # length of control vector
+        lb,  # lower bounds on control vector
+        ub,  # upper bounds on control vector
+        0,  # number of constraints
+        clb,  # lower bounds on constraints,
+        cub,  # upper bounds on constraints,
+        0,  # number of nonzeros in the constraint Jacobian
+        0,  # number of nonzeros in the Hessian
+        J,  # to evaluate the functional
+        dJ,  # to evaluate the gradient
+        fun_g,  # to evaluate the constraints
+        jac_g,
+    )  # to evaluate the constraint Jacobian
 
     pyipopt.set_loglevel(1)
     return nlp
@@ -215,46 +226,45 @@ def get_moola_options(*args, **kwargs):
     See `<https://github.com/funsim/moola>`
 
     .. note::
-    
+
        This is not working
 
     """
-    
-    # problem = MoolaOptimizationProblem(rd)
-                
+
+    # problem = MoolaOptimizationProblem(J)
+
     # paramvec_moola = moola.DolfinPrimalVector(paramvec)
     # solver = moola.NewtonCG(problem, paramvec_moola, options={'gtol': 1e-9,
-    #                                                           'maxiter': 20, 
-    #                                                           'display': 3, 
+    #                                                           'maxiter': 20,
+    #                                                           'display': 3,
     #                                                           'ncg_hesstol': 0})
-    
-                
+
     # solver = moola.BFGS(problem, paramvec_moola, options={'jtol': 0,
     #                                                       'gtol': 1e-9,
     #                                                       'Hinit': "default",
     #                                                       'maxiter': 100,
     #                                                     'mem_lim': 10})
-    
+
     # solver = moola.NonLinearCG(problem, paramvec_moola, options={'jtol': 0,
     #                                                          'gtol': 1e-9,
     #                                                          'Hinit': "default",
     #                                                          'maxiter': 100,
     #                                                          'mem_lim': 10})
-    
+
     raise NotImplementedError
 
 
-def get_scipy_options(method, rd, lb, ub, tol, max_iter, **kwargs):
+def get_scipy_options(J, method, lb, ub, tol, max_iter, **kwargs):
     """Get options for scipy module
 
     See `<https://docs.scipy.org/doc/scipy-0.18.1/reference/optimize.html>`
 
     Parameters
     ----------
+    J : :py:class`dolfin_adjoint.ReducedFunctional`
+            The reduced functional
     method : str
         Which optimization algorithm 'LBFGS' or 'SLSQP'.
-    rd : :py:class`dolfin_adjoint.ReducedFunctional`
-            The reduced functional
     lb : list
         Lower bound on the control
     ub : list
@@ -277,22 +287,28 @@ def get_scipy_options(method, rd, lb, ub, tol, max_iter, **kwargs):
     def upperbound_constraint(m):
         return ub - m
 
-    cons = ({"type": "ineq", "fun": lowerbound_constraint},
-            {"type": "ineq", "fun": upperbound_constraint})
+    cons = (
+        {"type": "ineq", "fun": lowerbound_constraint},
+        {"type": "ineq", "fun": upperbound_constraint},
+    )
 
     if not has_scipy016 and method == "slsqp":
         callback = None
     else:
-        callback = MyCallBack(rd, tol, max_iter)
+        callback = MyCallBack(J, tol, max_iter)
 
-    options = {"method": method,
-               "jac": rd.derivative,
-               "tol": tol,
-               "callback": callback,
-               "options": {"disp": kwargs.pop("disp", False),
-                           "iprint": kwargs.pop("iprint", 2),
-                           "ftol": tol,
-                           "maxiter": max_iter}}
+    options = {
+        "method": method,
+        "jac": J.derivative,
+        "tol": tol,
+        "callback": callback,
+        "options": {
+            "disp": kwargs.pop("disp", False),
+            "iprint": kwargs.pop("iprint", 2),
+            "ftol": tol,
+            "maxiter": max_iter,
+        },
+    }
 
     if method == "slsqp":
         options["constraints"] = cons
@@ -302,7 +318,7 @@ def get_scipy_options(method, rd, lb, ub, tol, max_iter, **kwargs):
     return options
 
 
-def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
+def get_pyOpt_options(J, method, lb, ub, tol, max_iter, **kwargs):
     """Get options for pyOpt module
 
     See `<http://www.pyopt.org>`
@@ -311,7 +327,7 @@ def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
     ----------
     method : str
         Which optimization algorithm `not working` SLSQP will be chosen.
-    rd : :py:class`dolfin_adjoint.ReducedFunctional`
+    J : :py:class`dolfin_adjoint.ReducedFunctional`
             The reduced functional
     lb : list
         Lower bound on the control
@@ -330,15 +346,15 @@ def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
     """
 
     def obj(x):
-        f, fail = rd(x, True)
+        f, fail = J(x, True)
         g = []
 
         return f, g, fail
-    
+
     def grad(x, f, g):
         fail = False
         try:
-            dj = rd.derivative()
+            dj = J.derivative()
         except Exception as ex:
             logger.warning(ex)
             fail = True
@@ -350,14 +366,15 @@ def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
         return np.array([dj]), gJac, fail
 
     # Create problem
-    opt_prob = pyOpt.Optimization('Problem', obj)
+    opt_prob = pyOpt.Optimization("Problem", obj)
 
     # Assign objective
-    opt_prob.addObj('J')
+    opt_prob.addObj("J")
 
     # Assign design variables (bounds)
-    opt_prob.addVarGroup("variables", kwargs["nvar"], type='c',
-                         value=kwargs["m"], lower=lb, upper=ub)
+    opt_prob.addVarGroup(
+        "variables", kwargs["nvar"], type="c", value=kwargs["m"], lower=lb, upper=ub
+    )
 
     opt = pyOpt.pySLSQP.SLSQP()
     opt.setOption("ACC", tol)
@@ -365,8 +382,7 @@ def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
     opt.setOption("IPRINT", -1)
     opt.setOption("IFILE", "")
 
-    options = {"opt_problem": opt_prob,
-               "sens_type": grad}
+    options = {"opt_problem": opt_prob, "sens_type": grad}
 
     return opt, options
 
@@ -374,156 +390,114 @@ def get_pyOpt_options(method, rd, lb, ub, tol, max_iter, **kwargs):
 class OptimalControl(object):
     """
     A class used for solving an optimal control problem
-
+    For possible parameters in the constructor see
+    :py:meth:`OptimalControl.default_parameters´
     """
-    def build_problem(self, params, rd, paramvec):
+
+    def __init__(self, **parameters):
+
+        self.parameters = OptimalControl.default_parameters()
+        self.parameters.update(**parameters)
+
+    @staticmethod
+    def default_parameters():
+        return dict(max_value=1.0,
+                    min_value=0.0,
+                    max_iter=100,
+                    tol=1e-6,
+                    opt_lib='scipy',
+                    method='slsqp',
+                    method_1d='bounded')
+
+    def build_problem(self, J, x):
         """Build optimal control problem
 
         Parameters
         ----------
-        params : dict
-            Application parameter
-        rd : :py:class`dolfin_adjoint.ReducedFunctional`
-            The reduced functional
-        paramvec : :py:class`dolfin_adjoint.function`
+        J : callable
+            The objective function that you want to minimize.
+            It should be able to be called on the control, i.e
+            you should be able to do :math:`J(x)` where :math:`x`
+            is the given control parameter.
+            If you use a gradient-based optimzation method it must
+            also implement an instance method called `derivative`, i.e
+            it should be possible to do :math:`J.derivative(x)`.
+        control : np.ndarray
             Control parameter
 
         """
         msg = "No supported optimization module installed"
         assert any(opt_import), msg
 
-        opt_params = params["Optimization_parameters"].to_dict()
-
-        x = gather_broadcast(paramvec.vector().array())
+        # x = gather_broadcast(control.vector().get_local())
         nvar = len(x)
-        self.paramvec = paramvec
         self.x = x
-        self.rd = rd
-        self._initial_guess = np.copy(x)
+        self.initial_control = np.copy(x)
+        self.J = J
 
-        if params["phase"] == config.PHASES[0]:
+        self.parameters['nvar'] = nvar
+        self.parameters['lb'] = np.array([self.parameters['min_value']] * nvar)
+        self.parameters['ub'] = np.array([self.parameters['max_value']] * nvar)
 
-            lb = np.array([opt_params["matparams_min"]]*nvar)
-            ub = np.array([opt_params["matparams_max"]]*nvar)
+        self.parameters['bounds'] = list(zip(self.parameters['lb'],
+                                             self.parameters['ub']))
 
-            tol = opt_params["passive_opt_tol"]
-            max_iter = opt_params["passive_maxiter"]
-
-            if opt_params["fixed_matparams"] != "":
-
-                fixed = np.array(opt_params["fixed_matparams"].split(","),
-                                 dtype=int)
-
-                if opt_params["fixed_matparams_values"] == "":
-                    msg = ("Fixed matparams will be fixed to the "
-                           "initial value. Please provide input "
-                           "to 'fixed_mataparams_values' for more "
-                           "control.")
-                    logger.warning(msg)
-                    fixed_values = np.zeros(len(fixed))
-                    for i, fi in enumerate(fixed):
-                        fixed_values[i] = x[fi]
-
-                else:
-                    try:
-                        fixed_values \
-                            = np.array(opt_params["fixed_matparams_values"].split(","),
-                                       dtype=int)
-                    except:
-                        logger.warning("Wrong format for 'fixed_matparams_values'")
-                        fixed_values = np.zeros(len(fixed))
-                        for i, fi in enumerate(fixed):
-                            fixed_values[i] = x[fi]
-
-                    if not len(fixed_values) == len(fixed):
-                        msg = "Number of fixed values and fixed indices does not match"
-                        logger.warning(msg)
-                        fixed_values = np.zeros(len(fixed))
-                        for i, fi in enumerate(fixed):
-                            fixed_values[i] = x[fi]
-
-                for i, fi in enumerate(fixed):
-                    lb[fi] = ub[fi] = fixed_values[i]
-                    self._initial_guess[fi] = fixed_values[i]
-
-                logger.info("Upper bounds : {}".format(ub))
-                logger.info("Lower bounds : {}".format(lb))
-
-        else:
-
-            lb = np.array([opt_params["gamma_min"]]*nvar)
-            ub = np.array([opt_params["gamma_max"]]*nvar)
-
-            tol = opt_params["active_opt_tol"]
-            max_iter = opt_params["active_maxiter"]
-
-        self.tol = tol
-        self.max_iter = max_iter
-
-        if nvar == 1:
-
-            self.options = {"method": opt_params["method_1d"],
-                            "bounds": zip(lb, ub)[0],
-                            "tol": tol,
-                            "options": {"maxiter": max_iter}}
-
-            self.oneD = True
-            self.opt_type = "scipy_brent"
-
-        else:
-
-            self.oneD = False
-
-            opt_params["nvar"] = nvar
-            opt_params["m"] = x
-
-            self.opt_type = opt_params.pop("opt_type", "scipy_slsqp")
-            self._get_options(lb, ub, tol, max_iter, **opt_params)
-
+        self._set_options()
         logger.info("".center(72, "#"))
         logger.info(" Building optimal control problem ".center(72, "#"))
-        msg = ("\n\tNumber of variables:\t{}".format(nvar) +
-               "\n\tLower bound:\t{}".format(np.min(lb)) +
-               "\n\tUpper bound:\t{}".format(np.max(ub)) +
-               "\n\tTolerance:\t{}".format(tol) +
-               "\n\tMaximum iterations:\t{}".format(max_iter) +
-               "\n\tOptimization algoritmh:\t{}\n".format(self.opt_type))
-        logger.info(msg)
+        # msg = (
+        #     "\n\tNumber of variables:\t{}".format(nvar)
+        #     + "\n\tLower bound:\t{}".format(np.min(lb))
+        #     + "\n\tUpper bound:\t{}".format(np.max(ub))
+        #     + "\n\tTolerance:\t{}".format(tol)
+        #     + "\n\tMaximum iterations:\t{}".format(max_iter)
+        #     + "\n\tOptimization algoritmh:\t{}\n".format(self.opt_type)
+        # )
+        # logger.info(msg)
         logger.info("".center(72, "#"))
 
-    def get_initial_guess(self):
-        return self._initial_guess
+    def _set_options(self):
 
-    def _get_options(self, lb, ub, tol, max_iter, **kwargs):
-
-        module, method = self.opt_type.split("_")
+        module = self.parameters['opt_lib']
 
         if module == "scipy":
             assert has_scipy, "Scipy not installed"
-            self.options = get_scipy_options(method, self.rd, lb,
-                                             ub, tol, max_iter, **kwargs)
+            if self.parameters['nvar'] == 1:
+                self.options \
+                    = {"method": self.parameters['method_1d'],
+                       "bounds": self.parameters['bounds'][0],
+                       "tol": self.parameters['tol'],
+                       "options": {"maxiter": self.parameters['max_iter']}}
+            else:
+                self.options = get_scipy_options(
+                    self.J, **self.parameters
+                )
 
         elif module == "moola":
             assert has_moola, "Moola not installed"
-            self.solver = get_moola_options(method, self.rd, lb, ub,
-                                            tol, max_iter, **kwargs)
+            self.solver = get_moola_options(
+                self.J, **self.parameters
+            )
 
         elif module == "pyOpt":
             assert has_pyOpt, "pyOpt not installed"
-            self.problem, self.options = get_pyOpt_options(self.rd, lb, ub,
-                                                           tol, max_iter,
-                                                           **kwargs)
+            self.problem, self.options = get_pyOpt_options(
+                self.J, **self.parameters
+            )
 
         elif module == "ipopt":
             assert has_pyipopt, "IPOPT not installed"
-            self.solver = get_ipopt_options(method, self.rd, lb, ub, tol,
-                                            max_iter, **kwargs)
+            self.solver = get_ipopt_options(
+                self.J, **self.parameters
+            )
 
         else:
-            msg = ("Unknown optimizatin type {}. "
-                   "Define the optimization type as 'module-method', "
-                   "where module is e.g scipy, pyOpt and methos is "
-                   "eg slsqp.")
+            msg = (
+                "Unknown optimizatin type {}. "
+                "Define the optimization type as 'module-method', "
+                "where module is e.g scipy, pyOpt and methos is "
+                "eg slsqp."
+            )
             raise ValueError(msg)
 
     def solve(self):
@@ -532,29 +506,33 @@ class OptimalControl(object):
 
         """
 
-        msg = "You need to build the problem before solving it"
-        assert hasattr(self, "opt_type"), msg
+        # msg = "You need to build the problem before solving it"
+        # assert hasattr(self, "opt_type"), msg
 
-        module, method = self.opt_type.split("_")
+        module = self.parameters['opt_lib']
 
-        logger.info("\n"+"Starting optimization".center(100, "-"))
-        logger.info("Scale: {}, \nDerivative Scale: {}".format(self.rd.scale,
-                                                               self.rd.derivative_scale))
-        logger.info("Tolerace: {}, \nMaximum iterations: {}\n".format(self.tol,
-                                                                      self.max_iter))
+        logger.info("\n" + "Starting optimization".center(100, "-"))
+        # logger.info(
+        #     "Scale: {}, \nDerivative Scale: {}".format(
+        #         self.J.scale, self.J.derivative_scale
+        #     )
+        # )
+        # logger.info(
+        #     "Tolerace: {}, \nMaximum iterations: {}\n".format(self.tol, self.max_iter)
+        # )
 
         t = Timer()
         t.start()
 
-        if self.oneD:
+        if self.parameters['nvar'] == 1:
 
-            res = minimize_1d(self.rd, self.x[0], **self.options)
+            res = minimize_1d(self.J, self.x[0], **self.options)
             x = res["x"]
 
         else:
 
             if module == "scipy":
-                res = scipy_minimize(self.rd, self.x, **self.options)
+                res = scipy_minimize(self.J, self.x, **self.options)
                 x = res["x"]
 
             elif module == "pyOpt":
@@ -562,29 +540,34 @@ class OptimalControl(object):
 
             elif module == "moola":
                 sol = self.solver.solve()
-                x = sol['control'].data
+                x = sol["control"].data
 
             elif module == "ipopt":
                 x = self.solver.solve(self.x)
 
             else:
-                msg = ("Unknown optimizatin type {}. "
-                       "Define the optimization type as 'module-method', "
-                       "where module is e.g scipy, pyOpt and methos is "
-                       "eg slsqp.")
+                msg = (
+                    "Unknown optimizatin type {}. "
+                    "Define the optimization type as 'module-method', "
+                    "where module is e.g scipy, pyOpt and methos is "
+                    "eg slsqp."
+                )
                 raise ValueError(msg)
 
         run_time = t.stop()
-        opt_result = {}
-        opt_result["x"] = x
-        opt_result["nfev"] = self.rd.iter
-        opt_result["nit"] = self.rd.iter
-        opt_result["njev"] = self.rd.nr_der_calls
-        opt_result["ncrash"] = self.rd.nr_crashes
-        opt_result["run_time"] = run_time
-        opt_result["controls"] = self.rd.controls_lst
-        opt_result["func_vals"] = self.rd.func_values_lst
-        opt_result["forward_times"] = self.rd.forward_times
-        opt_result["backward_times"] = self.rd.backward_times
-        opt_result["grad_norm"] = self.rd.grad_norm
-        return self.rd, opt_result
+        # opt_result = {}
+        # opt_result['initial_contorl'] = self.initial_control
+        # opt_result["optimal_control"] = x
+        # opt_result["run_time"] = run_time
+        # opt_result["nfev"] = self.J.iter
+        # opt_result["nit"] = self.J.iter
+        # opt_result["njev"] = self.J.nr_der_calls
+        # opt_result["ncrash"] = self.J.nr_crashes
+        # opt_result["controls"] = self.J.controls_lst
+        # opt_result["func_vals"] = self.J.func_values_lst
+        # opt_result["forwaJ_times"] = self.J.forwaJ_times
+        # opt_result["backwaJ_times"] = self.J.backwaJ_times
+        # opt_result["grad_norm"] = self.J.grad_norm
+        return optimization_results(initial_control=self.initial_control,
+                                    optimal_control=x,
+                                    run_time=run_time)
