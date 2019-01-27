@@ -7,7 +7,20 @@ from pulse import kinematics
 
 
 class BoundaryObservation(object):
-    def __init__(self, bc, data):
+    """
+    Class of observations that should be enforced as a boundary condition,
+    e.g pressure.
+
+    Arguemnts
+    ---------
+    bc : :py:class:`pulse.NeumannBC`
+        The boundary condition
+    data : scalar or list
+        The data that shoud be enforced on the boudary
+    start_value : float
+        The starting value
+    """
+    def __init__(self, bc, data, start_value=0.0):
         self.bc = bc
         if np.isscalar(data):
             self.data = (data,)
@@ -15,16 +28,25 @@ class BoundaryObservation(object):
             self.data = data
         else:
             self.data = tuple(data)
-        self._count = -1
+        self._start_value = start_value
         self.__len__ = len(data)
+        self.reset()
 
     def __repr__(self):
         return ('{self.__class__.__name__}'
                 '({self.bc}, {self.data})').format(self=self)
 
+    def reset(self):
+        self._count = -1
+        name = 'Start value Boundary {}'.format(self.bc)
+        self.bc.traction.assign(dolfin_adjoint.Constant(self._start_value,
+                                                        name=name))
+
     def assign_bc(self):
         data = self.data[self.count]
-        self.bc.traction.assign(dolfin_adjoint.Constant(data))
+        name = 'Data ({}) Boundary {}'.format(self.count, self.bc)
+        dolfin_data = dolfin_adjoint.Constant(data, name=name)
+        self.bc.traction.assign(dolfin_data)
 
     @property
     def count(self):
@@ -140,7 +162,10 @@ class VolumeObservation(ModelObservation):
         self._N = dolfin.FacetNormal(mesh)
         assert isinstance(dmu, dolfin.Measure)
         self._dmu = dmu
-        self._endoarea = dolfin_adjoint.Constant(dolfin.assemble(dolfin.Constant(1.0) * dmu))
+
+        name = 'EndoArea {}'.format(self)
+        self._endoarea = dolfin_adjoint.Constant(dolfin.assemble(dolfin.Constant(1.0) * dmu),
+                                                 name=name)
 
     def __call__(self, u=None):
         """
@@ -168,7 +193,7 @@ class VolumeObservation(ModelObservation):
                 self._X + u_int, J * dolfin.inv(F).T * self._N
             )
 
-        volume = dolfin.Function(self._V)
+        volume = dolfin_adjoint.Function(self._V, name='Simulated volume')
         # Make a project for dolfin-adjoint recording
         dolfin_adjoint.solve(
             dolfin.inner(self._trial, self._test) / self._endoarea * self._dmu
@@ -294,7 +319,8 @@ class StrainObservation(ModelObservation):
     def __call__(self, u=None):
 
         if u is None:
-            u = dolfin.Function(self._displacement_space)
+            u = dolfin.Function(self._displacement_space,
+                                name='Zero displacement from strain observation')
 
         u_int = map_displacement(
             u, self._displacement_space,
@@ -314,7 +340,7 @@ class StrainObservation(ModelObservation):
             tensor = kinematics.EulerAlmansiStrain(F, isochoric=self._isochoric)
 
         form = dolfin.inner(tensor * self.field, self.field)
-        strain = dolfin.Function(self._V)
+        strain = dolfin_adjoint.Function(self._V, name='Simulated Strain')
         dolfin_adjoint.solve(
             dolfin.inner(self._trial, self._test) / self._vol * self._dmu
             == dolfin.inner(self._test, form) * self._dmu,

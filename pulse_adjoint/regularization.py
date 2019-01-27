@@ -105,18 +105,22 @@ class Regularization(object):
 
     def __init__(self, f, mesh, weight=1.0, reg_type='L2'):
         self.f = f
-        self.weight = dolfin_adjoint.Constant(weight)
+        self.weight = dolfin_adjoint.Constant(weight, name='Regularization weight')
         self.reg_type = reg_type
-        self._V = dolfin.FunctionSpace(mesh, 'R', 0)
-        self._trial = dolfin.TrialFunction(self._V)
-        self._test = dolfin.TestFunction(self._V)
 
-        self._meshvol = compute_meshvolume(mesh)
-        self._dx = dolfin.dx(domain=mesh)
+        if mesh is not None:
+            self._meshvol = compute_meshvolume(mesh)
+            self._dx = dolfin.dx(domain=mesh)
+        else:
+            self._meshvol = 1.0
+            self._dx = dolfin.dx
+
         self.form = self._form()
 
     def _form(self):
-        if self.reg_type == 'L2':
+        if self.reg_type == '':
+            return dolfin_adjoint.Constant(0.0)
+        elif self.reg_type == 'L2':
             return L2(self.f, self._meshvol, self._dx)
         elif self.reg_type == 'H0':
             return H0(self.f, self._meshvol, self._dx)
@@ -126,6 +130,10 @@ class Regularization(object):
             return regional(self.f, self._meshvol, self._dx)
         else:
             raise ValueError('Unknown regularization type {}'.format(self.reg_type))
+
+    @classmethod
+    def zero(cls):
+        return cls(None, None, weight=0.0, reg_type='')
 
     @property
     def functional(self):

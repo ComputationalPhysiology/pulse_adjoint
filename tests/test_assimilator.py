@@ -5,6 +5,7 @@ from pulse import HeartGeometry
 from pulse_adjoint import (VolumeObservation,
                            StrainObservation,
                            OptimizationTarget,
+                           Regularization,
                            BoundaryObservation,
                            Assimilator)
 import fixtures
@@ -22,9 +23,11 @@ def main():
 
     model_volume = volume_obs(u).vector().get_local()[0]
     volumes = (2.7, 2.9)
+    # volumes = (2.7,)
     target = OptimizationTarget(volumes, volume_obs, collect=True)
 
     lvp = [0.5, 1.0]
+    # lvp = [0.5]
     bcs = BoundaryObservation(bc=problem.bcs.neumann[0],
                               data=lvp)
 

@@ -37,7 +37,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         control,
         scale=1.0,
         derivate_scale=1.0,
-        verbose=False,
+        verbose=True,
         log_level=dolfin.INFO,
     ):
 
@@ -53,12 +53,14 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 
         logger.debug("\nEvaluate functional...")
 
+        # annotation.annotate = True
         # Start recording
         dolfin_adjoint.adj_reset()
-        annotation.annotate = False
 
         self.collector['count'] += 1
-        self.assign_control(value)
+        self.assign_control(value, annotate=annotation.annotate)
+
+        # annotation.annotate = False
 
         if self.verbose:
 
@@ -93,6 +95,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 
         logger.debug("\nEvaluate forward model")
 
+        # annotation.annotate = True
         self.forward_result = self.forward_model(self.control, annotate=True)
         crash = not self.forward_result.converged
 
@@ -155,7 +158,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         self.print_line()
         return self.scale * func_value
 
-    def assign_control(self, value):
+    def assign_control(self, value, annotate=True):
         """
         Assign value to control parameter
         """
@@ -186,7 +189,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
                 control_new.vector(), numpy_mpi.gather_broadcast(value)
             )
 
-        self.control.assign(control_new)
+        self.control.assign(control_new, annotate=annotate)
 
     def reset(self):
 

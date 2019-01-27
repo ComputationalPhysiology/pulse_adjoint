@@ -29,6 +29,39 @@ class OptimizationTarget(object):
             self.observations = tuple(observations)
 
         self._V = dolfin.FunctionSpace(model_observation.mesh, "R", 0)
+        # self._functional = dolfin_adjoint.Function(
+        #     self._V, name="functional {}".format(self.model)
+        # )
+        #
+        # self.model_function = dolfin_adjoint.Function(
+        #     self.model._V, name="model function {}".format(self.model)
+        # )
+        # self.data_function = dolfin_adjoint.Function(
+        #     self.model._V, name="data function {}".format(self.model)
+        # )
+
+        # Test and trial functions for the target space
+        self._trial = dolfin.TrialFunction(self._V)
+        self._test = dolfin.TestFunction(self._V)
+
+        self.weight = dolfin_adjoint.Constant(weight,
+                                              name='Weight {}'.format(self.model))
+
+        self.__len__ = len(self.observations)
+        self._load_observations()
+
+        self.collector = dict(model=[], data=[], functional=[])
+        self.collect = collect
+
+        self.reset()
+
+    def __repr__(self):
+        return (
+            "{self.__class__.__name__}" "({self.observations}, {self.model})"
+        ).format(self=self)
+
+    def reset(self):
+        self._count = -1
         self._functional = dolfin_adjoint.Function(
             self._V, name="functional {}".format(self.model)
         )
@@ -40,23 +73,6 @@ class OptimizationTarget(object):
             self.model._V, name="data function {}".format(self.model)
         )
 
-        # Test and trial functions for the target space
-        self._trial = dolfin.TrialFunction(self._V)
-        self._test = dolfin.TestFunction(self._V)
-
-        self.weight = dolfin_adjoint.Constant(weight)
-
-        self._count = -1
-        self.__len__ = len(self.observations)
-        self._load_observations()
-
-        self.collector = dict(model=[], data=[], functional=[])
-        self.collect = collect
-
-    def __repr__(self):
-        return (
-            "{self.__class__.__name__}" "({self.observations}, {self.model})"
-        ).format(self=self)
 
     def _load_observations(self):
         """
@@ -69,7 +85,8 @@ class OptimizationTarget(object):
 
         dolfin_observations = []
         for obs in self.observations:
-            f = dolfin.Function(self.model._V)
+            f = dolfin.Function(self.model._V,
+                                name='Data Observation {}'.format(self.model))
             if np.isscalar(obs):
                 obs_arr = np.array([obs])
             else:
@@ -90,7 +107,7 @@ class OptimizationTarget(object):
     def functional(self):
         return self.weight * self._functional
 
-    def assign(self, u=None):
+    def assign(self, u=None, annotate=True):
         """
         Assign the model observation and compute the functional
 
@@ -107,11 +124,11 @@ class OptimizationTarget(object):
         """
         # Assign model observation for dolfin-adjoint recording
         model = self.model(u)
-        self.model_function.assign(model)
+        self.model_function.assign(model, annotate=annotate)
 
         # Assign data observation for dolfin-adjoint recording
         data = self.dolfin_observations[self.count]
-        self.data_function.assign(data)
+        self.data_function.assign(data, annotate=annotate)
 
         form = self.form()
 
