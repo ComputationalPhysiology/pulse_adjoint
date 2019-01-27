@@ -147,6 +147,7 @@ class Assimilator(object):
         """
         for count in range(self.data_points):
 
+            print(count)
             # Stop the recording
             annotate = annotation.annotate
 
@@ -229,7 +230,6 @@ class Assimilator(object):
                 functional_values.append(dolfin.assemble(functional))
                 functionals_time.append(functional * dolfin_adjoint.dt[count + 1])
                 dolfin_adjoint.adj_inc_timestep(count + 1, count == self.data_points)
-                break
 
             return forward_result(
                 functional=list_sum(functionals_time),
@@ -245,12 +245,14 @@ class Assimilator(object):
         rd = ReducedFunctional(forward_model, self.control)
         rd(self.control)
         # 
-        # dolfin_adjoint.replay_dolfin()
-        # rd.derivative()
+        
+        
+        dolfin_adjoint.replay_dolfin()
         # # exit()
-        # dolfin_adjoint.adj_html("forward.html", "forward")
-        # dolfin_adjoint.adj_html("adjoint.html", "adjoint")
-        # exit()
+        dolfin_adjoint.adj_html("forward.html", "forward")
+        dolfin_adjoint.adj_html("adjoint.html", "adjoint")
+        rd.derivative()
+        exit()
 
         return rd
 

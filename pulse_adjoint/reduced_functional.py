@@ -14,9 +14,10 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
     """
     A modified reduced functional of the `dolfin_adjoint.ReducedFuctionl`
 
-    *Parameters*
+    Arguments
+    ---------
 
-    for_run: callable
+    forward_model: callable
         The forward model, which can be called with the control parameter
         as first argument, and a boolean as second, indicating that
         annotation is on/off.
@@ -24,9 +25,14 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         The control parameter
     scale: float
         Scale factor for the functional
-    relax: float
+    derivate_scale: float
         Scale factor for the derivative. Note the total scale factor for the
-        derivative will be scale*relax
+        derivative will be scale * derivate_scale
+    verbose : bool
+        If True, print more during functional evaluation, if False, turn off
+        logging during evaluation.
+    log_level : int
+        Level of verbosity. Default: INFO = 20
 
 
     """
@@ -37,7 +43,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         control,
         scale=1.0,
         derivate_scale=1.0,
-        verbose=True,
+        verbose=False,
         log_level=dolfin.INFO,
     ):
 
@@ -58,13 +64,28 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         dolfin_adjoint.adj_reset()
 
         self.collector['count'] += 1
-        self.assign_control(value, annotate=annotation.annotate)
+        new_control = dolfin_adjoint.Function(self.control.function_space(),
+                                              name='new_control')
+        # self.assign_control(value, annotate=annotation.annotate)
 
         # annotation.annotate = False
+        if isinstance(value, (dolfin_adjoint.Function, dolfin.Function,
+                              dolfin_adjoint.Constant, dolfin.Constant,
+                              RegionalParameter, MixedParameter)):
+            new_control.assign(value)
+        elif isinstance(value, float) or isinstance(value, int):
+            numpy_mpi.assign_to_vector(new_control.vector(), np.array([value]))
+        elif isinstance(value, dolfin_adjoint.enlisting.Enlisted):
+            val_delisted = dolfin_adjoint.delist(value,self.controls)
+            new_control.assign(val_delisted)
+            
+        else:
+            numpy_mpi.assign_to_vector(new_control.vector(), numpy_mpi.gather_broadcast(value))
+
 
         if self.verbose:
 
-            arr = numpy_mpi.gather_broadcast(self.control.vector().array())
+            arr = numpy_mpi.gather_broadcast(new_control.vector().array())
             msg = (
                 "\nCurrent value of control:"
                 "\n\t{:>8}\t{:>8}\t{:>8}\t{:>8}\t{:>8}"
@@ -82,7 +103,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
                 np.argmax(arr),
             )
 
-            logger.info(msg)
+            logger.debug(msg)
 
         # Change loglevel to avoid too much printing
         change_log_level = (self.log_level == dolfin.INFO) and not self.verbose
@@ -96,7 +117,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         logger.debug("\nEvaluate forward model")
 
         # annotation.annotate = True
-        self.forward_result = self.forward_model(self.control, annotate=True)
+        self.forward_result = self.forward_model(new_control, annotate=True)
         crash = not self.forward_result.converged
 
         forward_time = t.stop()
