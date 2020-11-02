@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""
+r"""
 This script implements that various opimtimization options
 that can be used to solve the optimal control problem
 
@@ -58,15 +58,17 @@ that can be used to solve the optimal control problem
 # WARRANTIES OF ANY KIND, EITHER IMPLIED OR EXPRESSED, INCLUDING, BUT
 # NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS
 from collections import namedtuple
+
 import numpy as np
 from dolfin import Timer
 
-from . import config, make_logger
-from pulse.numpy_mpi import gather_broadcast
+from . import make_logger
 
 logger = make_logger(__name__, 10)
 
-optimization_results = namedtuple('optimization_results', 'initial_control, optimal_control, run_time')
+optimization_results = namedtuple(
+    "optimization_results", "initial_control, optimal_control, run_time"
+)
 
 try:
     import scipy
@@ -91,7 +93,7 @@ except ImportError:
     has_pyipopt = False
 
 try:
-    import moola
+    import moola  # noqa: F401
 
     has_moola = True
 except ImportError:
@@ -180,7 +182,7 @@ def get_ipopt_options(rd, lb, ub, tol, max_iter, **kwargs):
         A nonlinear ipopt problem
     """
     ncontrols = len(ub)
-    nconstraints = 0
+    # nconstraints = 0
     empty = np.array([], dtype=float)
     clb = empty
     cub = empty
@@ -401,13 +403,15 @@ class OptimalControl(object):
 
     @staticmethod
     def default_parameters():
-        return dict(max_value=1.0,
-                    min_value=0.0,
-                    max_iter=100,
-                    tol=1e-6,
-                    opt_lib='scipy',
-                    method='slsqp',
-                    method_1d='bounded')
+        return dict(
+            max_value=1.0,
+            min_value=0.0,
+            max_iter=100,
+            tol=1e-6,
+            opt_lib="scipy",
+            method="slsqp",
+            method_1d="bounded",
+        )
 
     def build_problem(self, J, x):
         """Build optimal control problem
@@ -435,12 +439,13 @@ class OptimalControl(object):
         self.initial_control = np.copy(x)
         self.J = J
 
-        self.parameters['nvar'] = nvar
-        self.parameters['lb'] = np.array([self.parameters['min_value']] * nvar)
-        self.parameters['ub'] = np.array([self.parameters['max_value']] * nvar)
+        self.parameters["nvar"] = nvar
+        self.parameters["lb"] = np.array([self.parameters["min_value"]] * nvar)
+        self.parameters["ub"] = np.array([self.parameters["max_value"]] * nvar)
 
-        self.parameters['bounds'] = list(zip(self.parameters['lb'],
-                                             self.parameters['ub']))
+        self.parameters["bounds"] = list(
+            zip(self.parameters["lb"], self.parameters["ub"])
+        )
 
         self._set_options()
         logger.info("".center(72, "#"))
@@ -458,38 +463,31 @@ class OptimalControl(object):
 
     def _set_options(self):
 
-        module = self.parameters['opt_lib']
+        module = self.parameters["opt_lib"]
 
         if module == "scipy":
             assert has_scipy, "Scipy not installed"
-            if self.parameters['nvar'] == 1:
-                self.options \
-                    = {"method": self.parameters['method_1d'],
-                       "bounds": self.parameters['bounds'][0],
-                       "tol": self.parameters['tol'],
-                       "options": {"maxiter": self.parameters['max_iter']}}
+            if self.parameters["nvar"] == 1:
+                self.options = {
+                    "method": self.parameters["method_1d"],
+                    "bounds": self.parameters["bounds"][0],
+                    "tol": self.parameters["tol"],
+                    "options": {"maxiter": self.parameters["max_iter"]},
+                }
             else:
-                self.options = get_scipy_options(
-                    self.J, **self.parameters
-                )
+                self.options = get_scipy_options(self.J, **self.parameters)
 
         elif module == "moola":
             assert has_moola, "Moola not installed"
-            self.solver = get_moola_options(
-                self.J, **self.parameters
-            )
+            self.solver = get_moola_options(self.J, **self.parameters)
 
         elif module == "pyOpt":
             assert has_pyOpt, "pyOpt not installed"
-            self.problem, self.options = get_pyOpt_options(
-                self.J, **self.parameters
-            )
+            self.problem, self.options = get_pyOpt_options(self.J, **self.parameters)
 
         elif module == "ipopt":
             assert has_pyipopt, "IPOPT not installed"
-            self.solver = get_ipopt_options(
-                self.J, **self.parameters
-            )
+            self.solver = get_ipopt_options(self.J, **self.parameters)
 
         else:
             msg = (
@@ -509,7 +507,7 @@ class OptimalControl(object):
         # msg = "You need to build the problem before solving it"
         # assert hasattr(self, "opt_type"), msg
 
-        module = self.parameters['opt_lib']
+        module = self.parameters["opt_lib"]
 
         logger.info("\n" + "Starting optimization".center(100, "-"))
         # logger.info(
@@ -524,7 +522,7 @@ class OptimalControl(object):
         t = Timer()
         t.start()
 
-        if self.parameters['nvar'] == 1:
+        if self.parameters["nvar"] == 1:
 
             res = minimize_1d(self.J, self.x[0], **self.options)
             x = res["x"]
@@ -568,6 +566,6 @@ class OptimalControl(object):
         # opt_result["forwaJ_times"] = self.J.forwaJ_times
         # opt_result["backwaJ_times"] = self.J.backwaJ_times
         # opt_result["grad_norm"] = self.J.grad_norm
-        return optimization_results(initial_control=self.initial_control,
-                                    optimal_control=x,
-                                    run_time=run_time)
+        return optimization_results(
+            initial_control=self.initial_control, optimal_control=x, run_time=run_time
+        )

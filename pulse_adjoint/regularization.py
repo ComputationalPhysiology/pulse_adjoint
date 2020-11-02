@@ -1,12 +1,8 @@
-import numpy as np
 import dolfin
 import dolfin_adjoint
-from pulse.dolfin_utils import list_sum, compute_meshvolume
-from pulse import numpy_mpi
+from pulse.dolfin_utils import compute_meshvolume
 
-from .model_observations import ModelObservation
-from . import make_logger, annotation
-
+from . import make_logger
 
 logger = make_logger(__name__, 10)
 
@@ -46,16 +42,12 @@ def regional(f, meshvol=None, dx=None):
 
     # Sum all the components to find the mean
     expr_arr[0] = "1"
-    f_sum = dolfin.dot(
-        f, dolfin.Expression(tuple(expr_arr), degree=1)
-    )
+    f_sum = dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1))
     expr_arr[0] = "0"
 
     for i in range(1, f.value_size()):
         expr_arr[i] = "1"
-        f_sum += dolfin.dot(
-            f, dolfin.Expression(tuple(expr_arr), degree=1)
-        )
+        f_sum += dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1))
         expr_arr[i] = "0"
 
     # Compute the mean
@@ -64,18 +56,14 @@ def regional(f, meshvol=None, dx=None):
     # Compute the variance
     expr_arr[0] = "1"
     f_reg = (
-        dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1))
-        - f_avg
+        dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1)) - f_avg
     ) ** 2 / f.value_size()
 
     expr_arr[0] = "0"
     for i in range(1, f.value_size()):
         expr_arr[i] = "1"
         f_reg += (
-            dolfin.dot(
-                f, dolfin.Expression(tuple(expr_arr), degree=1)
-            )
-            - f_avg
+            dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1)) - f_avg
         ) ** 2 / f.value_size()
         expr_arr[i] = "0"
 
@@ -103,9 +91,9 @@ class Regularization(object):
         'regional']. Default: 'L2'
     """
 
-    def __init__(self, f, mesh, weight=1.0, reg_type='L2'):
+    def __init__(self, f, mesh, weight=1.0, reg_type="L2"):
         self.f = f
-        self.weight = dolfin_adjoint.Constant(weight, name='Regularization weight')
+        self.weight = dolfin_adjoint.Constant(weight, name="Regularization weight")
         self.reg_type = reg_type
 
         if mesh is not None:
@@ -118,22 +106,22 @@ class Regularization(object):
         self.form = self._form()
 
     def _form(self):
-        if self.reg_type == '':
+        if self.reg_type == "":
             return dolfin_adjoint.Constant(0.0)
-        elif self.reg_type == 'L2':
+        elif self.reg_type == "L2":
             return L2(self.f, self._meshvol, self._dx)
-        elif self.reg_type == 'H0':
+        elif self.reg_type == "H0":
             return H0(self.f, self._meshvol, self._dx)
-        elif self.reg_type == 'H1':
+        elif self.reg_type == "H1":
             return H1(self.f, self._meshvol, self._dx)
-        elif self.reg_type == 'regional':
+        elif self.reg_type == "regional":
             return regional(self.f, self._meshvol, self._dx)
         else:
-            raise ValueError('Unknown regularization type {}'.format(self.reg_type))
+            raise ValueError("Unknown regularization type {}".format(self.reg_type))
 
     @classmethod
     def zero(cls):
-        return cls(None, None, weight=0.0, reg_type='')
+        return cls(None, None, weight=0.0, reg_type="")
 
     @property
     def functional(self):

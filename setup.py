@@ -1,42 +1,116 @@
-# System imports
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Note: To use the 'upload' functionality of this file, you must:
+#   $ pipenv install twine --dev
+
+import io
 import os
 import sys
-import platform
+from shutil import rmtree
 
-from setuptools import setup
+from setuptools import Command, find_packages, setup
 
-# Version number
-major = 1
-minor = 0
+# Package meta-data.
+NAME = "pulse-adjoint"
+DESCRIPTION = "An adjointable cardiac mechanics data assimilator."
+URL = "https://github.com/finsberg/pulse_adjoint"
+EMAIL = "henriknf@simula.no"
+AUTHOR = "Henrik Finsberg"
+REQUIRES_PYTHON = ">=3.6"
+VERSION = "2019.2"
 
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
+# What packages are required for this module to be executed?
+REQUIRED = ["h5py", "numpy", "scipy"]
+
+# What packages are optional?
+EXTRAS = {
+    # 'fancy feature': ['django'],
+}
+
+# The rest you shouldn't have to touch too much :)
+# ------------------------------------------------
+# Except, perhaps the License and Trove Classifiers!
+# If you do change the License, remember to change the Trove Classifier for that!
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+# Import the README and use it as the long-description.
+# Note: this will only work if 'README.md' is present in your MANIFEST.in file!
+try:
+    with io.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+        long_description = "\n" + f.read()
+except FileNotFoundError:
+    long_description = DESCRIPTION
+
+# Load the package's __version__.py module as a dictionary.
+about = {}
+with open(os.path.join(here, "pulse_adjoint/__version__.py")) as f:
+    exec(f.read(), about)
+about["__version__"] = VERSION
 
 
-if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
-    # In the Windows command prompt we can't execute Python scripts
-    # without a .py extension. A solution is to create batch files
-    # that runs the different scripts.
-    batch_files = []
-    for script in scripts:
-        batch_file = script + ".bat"
-        f = open(batch_file, "w")
-        f.write('python "%%~dp0\%s" %%*\n' % os.path.split(script)[1])
-        f.close()
-        batch_files.append(batch_file)
-    scripts.extend(batch_files)
+class ReleaseCommand(Command):
+    """Support setup.py upload."""
+
+    description = "Build and publish the package."
+    user_options = []
+
+    @staticmethod
+    def status(s):
+        """Prints things in bold."""
+        print("\033[1m{0}\033[0m".format(s))
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        try:
+            self.status("Removing previous builds…")
+            rmtree(os.path.join(here, "dist"))
+        except OSError:
+            pass
+
+        self.status("Pushing git tags…")
+        os.system("git tag v{0}".format(about["__version__"]))
+        os.system("git push finsberg master --tags")
+
+        sys.exit()
 
 
-
-setup(name = "pulse_adjoint",
-      version = "{0}.{1}".format(major, minor),
-      description = """
-      An adjointable cardiac mechanics data assimilator.
-      """,
-      author = "Henrik Finsberg",
-      author_email = "henriknf@simula.no",
-      license="LGPL version 3 or later",
-      # install_requires=REQUIREMENTS,
-      # dependency_links=dependency_links,
-      packages = ["pulse_adjoint"],
-      package_dir = {"pulse_adjoint": "pulse_adjoint"},
-      )
+# Where the magic happens:
+setup(
+    name=NAME,
+    version=about["__version__"],
+    description=DESCRIPTION,
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author=AUTHOR,
+    author_email=EMAIL,
+    python_requires=REQUIRES_PYTHON,
+    url=URL,
+    packages=find_packages(exclude=["tests", "demos"]),
+    # If your package is a single module, use this instead of 'packages':
+    # py_modules=['mypackage'],
+    # entry_points={
+    #     'console_scripts': ['mycli=mymodule:cli'],
+    # },
+    install_requires=REQUIRED,
+    extras_require=EXTRAS,
+    include_package_data=True,
+    license="LGPL version 3 or later",
+    package_data={"pulse.example_meshes": ["*.h5"]},
+    classifiers=[
+        # Trove classifiers
+        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+        # 'License :: OSI Approved :: LGPL version 3 or later',
+        # 'Programming Language :: Python',
+        # 'Programming Language :: Python :: 3',
+        # 'Programming Language :: Python :: Implementation :: CPython',
+    ],
+    # $ setup.py publish support.
+    cmdclass={"release": ReleaseCommand},
+)

@@ -1,11 +1,10 @@
 import os
-import numpy as np
 from collections import defaultdict
-import dolfin_adjoint
-import dolfin
 
-from . import config
-from .  import make_logger
+import numpy as np
+
+from . import make_logger
+
 logger = make_logger(__name__, 10)
 
 
@@ -42,23 +41,18 @@ def strain_dict_to_list(strain_data=None):
 
     return tuple(new_strain_data)
 
+
 class Observation(object):
-    def __init__(
-        self,
-        real_observation,
-        model_observation
-    ):
+    def __init__(self, real_observation, model_observation):
         self.real_observation = real_observation
         self.model_observation = model_observation
 
 
 class Observations(object):
-    """
-
-    """
+    """"""
 
     _target_names = ("strain", "volume")
-    _data_keys = ("time", "volume", "strain", "pressure", "RVV", "RVP")
+    _data_keys = ("time", "volume", "strain", "RVV")
 
     def __init__(
         self,
@@ -74,11 +68,10 @@ class Observations(object):
         **kwargs
     ):
 
+        self.bcs = bcs
         self.time = time
         self.volume = volume
-        self.pressure = pressure
         self.RVV = RVV
-        self.RVP = RVP
         self._init_strain(strain)
         self.additional_data = kwargs
         self.echo_data = echo_data
@@ -203,12 +196,12 @@ class Observations(object):
             ).format(extensions, ext)
             assert ext in extensions, msg
 
-            data_kwargs = ClinicalData.load_yaml_file(data_path)
+            data_kwargs = Observations.load_yaml_file(data_path)
         else:
             data_kwargs = {}
 
         if echo_path is not None:
-            echo_data = ClinicalData.load_echo_data(echo_path)
+            echo_data = Observations.load_echo_data(echo_path)
 
         else:
             echo_data = None
@@ -231,6 +224,7 @@ class Observations(object):
                 yaml.dump(data, f)
         except ImportError as ex:
             logger.error("Please install yaml. Pip install pyyaml")
+            raise ex
         except Exception as ex:
             logger.error("Cannot save data to {}".format(fname))
             logger.error(("Data contains the following keys " "{}").format(data.keys()))

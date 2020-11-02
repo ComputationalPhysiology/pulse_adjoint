@@ -1,9 +1,8 @@
-from collections import namedtuple
-import numpy as np
 import dolfin
 import dolfin_adjoint
-from pulse.dolfin_utils import map_displacement, compute_meshvolume
-from pulse import kinematics
+import numpy as np
+import pulse
+from pulse.dolfin_utils import compute_meshvolume, map_displacement
 
 
 class BoundaryObservation(object):
@@ -20,6 +19,7 @@ class BoundaryObservation(object):
     start_value : float
         The starting value
     """
+
     def __init__(self, bc, data, start_value=0.0):
         self.bc = bc
         if np.isscalar(data):
@@ -33,18 +33,18 @@ class BoundaryObservation(object):
         self.reset()
 
     def __repr__(self):
-        return ('{self.__class__.__name__}'
-                '({self.bc}, {self.data})').format(self=self)
+        return ("{self.__class__.__name__}" "({self.bc}, {self.data})").format(
+            self=self
+        )
 
     def reset(self):
         self._count = -1
-        name = 'Start value Boundary {}'.format(self.bc)
-        self.bc.traction.assign(dolfin_adjoint.Constant(self._start_value,
-                                                        name=name))
+        name = "Start value Boundary {}".format(self.bc)
+        self.bc.traction.assign(dolfin_adjoint.Constant(self._start_value, name=name))
 
     def assign_bc(self):
         data = self.data[self.count]
-        name = 'Data ({}) Boundary {}'.format(self.count, self.bc)
+        name = "Data ({}) Boundary {}".format(self.count, self.bc)
         dolfin_data = dolfin_adjoint.Constant(data, name=name)
         self.bc.traction.assign(dolfin_data)
 
@@ -63,13 +63,12 @@ class BoundaryObservation(object):
             return self
 
 
-
 class ModelObservation(object):
     """
     Base class for model observation.
     """
 
-    def __init__(self, mesh, target_space='R_0', description=''):
+    def __init__(self, mesh, target_space="R_0", description=""):
 
         assert isinstance(mesh, dolfin.Mesh)
         self.mesh = mesh
@@ -80,13 +79,13 @@ class ModelObservation(object):
         self.description = description
 
         # Test and trial functions for the target space
-        family, degree = target_space.split('_')
+        family, degree = target_space.split("_")
         self._V = dolfin.FunctionSpace(mesh, family, int(degree))
         self._trial = dolfin.TrialFunction(self._V)
         self._test = dolfin.TestFunction(self._V)
 
     def __repr__(self):
-        return '{self.__class__.__name__}({self.description})'.format(self=self)
+        return "{self.__class__.__name__}({self.description})".format(self=self)
 
 
 class VolumeObservation(ModelObservation):
@@ -131,41 +130,41 @@ class VolumeObservation(ModelObservation):
         self,
         mesh,
         dmu,
-        approx='project',
-        displacement_space='CG_2',
-        interpolation_space='CG_1',
-        description=''
+        approx="project",
+        displacement_space="CG_2",
+        interpolation_space="CG_1",
+        description="",
     ):
         ModelObservation.__init__(
-            self, mesh, target_space='R_0', description=description
+            self, mesh, target_space="R_0", description=description
         )
 
         approxs = ["project", "interpolate", "original"]
-        msg = 'Expected "approx" for be one of {}, got {}'.format(approxs,
-                                                                  approx)
+        msg = 'Expected "approx" for be one of {}, got {}'.format(approxs, approx)
         assert approx in approxs, msg
         self._approx = approx
 
         # These spaces are only used if you want to project
         # or interpolate the displacement before assigning it
         # Space for interpolating the displacement if needed
-        family, degree = interpolation_space.split('_')
-        self._interpolation_space \
-            = dolfin.VectorFunctionSpace(mesh, family, int(degree))
+        family, degree = interpolation_space.split("_")
+        self._interpolation_space = dolfin.VectorFunctionSpace(
+            mesh, family, int(degree)
+        )
 
         # Displacement space
-        family, degree = displacement_space.split('_')
-        self._displacement_space \
-            = dolfin.VectorFunctionSpace(mesh, family, int(degree))
+        family, degree = displacement_space.split("_")
+        self._displacement_space = dolfin.VectorFunctionSpace(mesh, family, int(degree))
 
         self._X = dolfin.SpatialCoordinate(mesh)
         self._N = dolfin.FacetNormal(mesh)
         assert isinstance(dmu, dolfin.Measure)
         self._dmu = dmu
 
-        name = 'EndoArea {}'.format(self)
-        self._endoarea = dolfin_adjoint.Constant(dolfin.assemble(dolfin.Constant(1.0) * dmu),
-                                                 name=name)
+        name = "EndoArea {}".format(self)
+        self._endoarea = dolfin_adjoint.Constant(
+            dolfin.assemble(dolfin.Constant(1.0) * dmu), name=name
+        )
 
     def __call__(self, u=None):
         """
@@ -182,23 +181,22 @@ class VolumeObservation(ModelObservation):
 
         else:
             u_int = map_displacement(
-                u, self._displacement_space,
-                self._interpolation_space, self._approx
+                u, self._displacement_space, self._interpolation_space, self._approx
             )
 
             # Compute volume
-            F = kinematics.DeformationGradient(u_int)
-            J = kinematics.Jacobian(F)
+            F = pulse.kinematics.DeformationGradient(u_int)
+            J = pulse.kinematics.Jacobian(F)
             volume_form = (-1.0 / 3.0) * dolfin.dot(
                 self._X + u_int, J * dolfin.inv(F).T * self._N
             )
 
-        volume = dolfin_adjoint.Function(self._V, name='Simulated volume')
+        volume = dolfin_adjoint.Function(self._V, name="Simulated volume")
         # Make a project for dolfin-adjoint recording
         dolfin_adjoint.solve(
             dolfin.inner(self._trial, self._test) / self._endoarea * self._dmu
             == dolfin.inner(volume_form, self._test) * self._dmu,
-            volume
+            volume,
         )
 
         return volume
@@ -260,19 +258,18 @@ class StrainObservation(ModelObservation):
         self,
         mesh,
         field,
-        strain_tensor='E',
+        strain_tensor="E",
         dmu=None,
         approx="original",
         F_ref=None,
         isochoric=True,
-        displacement_space='CG_2',
-        interpolation_space='CG_1',
-        description=''
-
+        displacement_space="CG_2",
+        interpolation_space="CG_1",
+        description="",
     ):
 
         ModelObservation.__init__(
-            self, mesh, target_space='R_0', description=description
+            self, mesh, target_space="R_0", description=description
         )
 
         # Check that the given field is a vector of the same dim as the mesh
@@ -280,8 +277,7 @@ class StrainObservation(ModelObservation):
         # assert isinstance(field, (dolfin.Function, dolfin.Constant)
         assert field.ufl_shape[0] == dim
         approxs = ["project", "interpolate", "original"]
-        msg = 'Expected "approx" for be one of {}, got {}'.format(approxs,
-                                                                  approx)
+        msg = 'Expected "approx" for be one of {}, got {}'.format(approxs, approx)
         self.field = field
 
         assert approx in approxs, msg
@@ -292,8 +288,9 @@ class StrainObservation(ModelObservation):
         self._isochoric = isochoric
 
         tensors = ["gradu", "E", "almansi"]
-        msg = 'Expected strain tensor to be one of {}, got {}'.format(tensors,
-                                                                      strain_tensor)
+        msg = "Expected strain tensor to be one of {}, got {}".format(
+            tensors, strain_tensor
+        )
         assert strain_tensor in tensors, msg
         self._tensor = strain_tensor
 
@@ -307,40 +304,41 @@ class StrainObservation(ModelObservation):
         # These spaces are only used if you want to project
         # or interpolate the displacement before assigning it
         # Space for interpolating the displacement if needed
-        family, degree = interpolation_space.split('_')
-        self._interpolation_space \
-            = dolfin.VectorFunctionSpace(mesh, family, int(degree))
+        family, degree = interpolation_space.split("_")
+        self._interpolation_space = dolfin.VectorFunctionSpace(
+            mesh, family, int(degree)
+        )
 
         # Displacement space
-        family, degree = displacement_space.split('_')
-        self._displacement_space \
-            = dolfin.VectorFunctionSpace(mesh, family, int(degree))
+        family, degree = displacement_space.split("_")
+        self._displacement_space = dolfin.VectorFunctionSpace(mesh, family, int(degree))
 
     def __call__(self, u=None):
 
         if u is None:
-            u = dolfin.Function(self._displacement_space,
-                                name='Zero displacement from strain observation')
+            u = dolfin.Function(
+                self._displacement_space,
+                name="Zero displacement from strain observation",
+            )
 
         u_int = map_displacement(
-            u, self._displacement_space,
-            self._interpolation_space, self._approx
+            u, self._displacement_space, self._interpolation_space, self._approx
         )
         # We need to correct for th reference deformation
-        F = kinematics.DeformationGradient(u_int) * dolfin.inv(self._F_ref)
+        F = pulse.kinematics.DeformationGradient(u_int) * dolfin.inv(self._F_ref)
 
         # Compute the strains
         if self._tensor == "gradu":
-            tensor = kinematics.EngineeringStrain(F, isochoric=self._isochoric)
+            tensor = pulse.kinematics.EngineeringStrain(F, isochoric=self._isochoric)
 
         elif self._tensor == "E":
-            tensor = kinematics.GreenLagrangeStrain(F, isochoric=self._isochoric)
+            tensor = pulse.kinematics.GreenLagrangeStrain(F, isochoric=self._isochoric)
 
         elif self._tensor == "almansi":
-            tensor = kinematics.EulerAlmansiStrain(F, isochoric=self._isochoric)
+            tensor = pulse.kinematics.EulerAlmansiStrain(F, isochoric=self._isochoric)
 
         form = dolfin.inner(tensor * self.field, self.field)
-        strain = dolfin_adjoint.Function(self._V, name='Simulated Strain')
+        strain = dolfin_adjoint.Function(self._V, name="Simulated Strain")
         dolfin_adjoint.solve(
             dolfin.inner(self._trial, self._test) / self._vol * self._dmu
             == dolfin.inner(self._test, form) * self._dmu,

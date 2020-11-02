@@ -1,11 +1,10 @@
-import numpy as np
 import dolfin
 import dolfin_adjoint
+import numpy as np
 from pulse import numpy_mpi
 
+from . import annotation, make_logger
 from .model_observations import ModelObservation
-from . import make_logger, annotation
-
 
 logger = make_logger(__name__, 10)
 
@@ -17,7 +16,6 @@ class OptimizationTarget(object):
 
     def __init__(self, observations, model_observation, weight=1.0, collect=True):
 
-        msg = "Expected"
         assert isinstance(model_observation, ModelObservation)
         self.model = model_observation
 
@@ -44,8 +42,9 @@ class OptimizationTarget(object):
         self._trial = dolfin.TrialFunction(self._V)
         self._test = dolfin.TestFunction(self._V)
 
-        self.weight = dolfin_adjoint.Constant(weight,
-                                              name='Weight {}'.format(self.model))
+        self.weight = dolfin_adjoint.Constant(
+            weight, name="Weight {}".format(self.model)
+        )
 
         self.__len__ = len(self.observations)
         self._load_observations()
@@ -73,7 +72,6 @@ class OptimizationTarget(object):
             self.model._V, name="data function {}".format(self.model)
         )
 
-
     def _load_observations(self):
         """
         Load the observations into dolfin functions so that dolfin-adjoint
@@ -85,8 +83,9 @@ class OptimizationTarget(object):
 
         dolfin_observations = []
         for obs in self.observations:
-            f = dolfin.Function(self.model._V,
-                                name='Data Observation {}'.format(self.model))
+            f = dolfin.Function(
+                self.model._V, name="Data Observation {}".format(self.model)
+            )
             if np.isscalar(obs):
                 obs_arr = np.array([obs])
             else:
@@ -138,9 +137,11 @@ class OptimizationTarget(object):
         )
 
         if self.collect:
-            self.collector['model'].append(dolfin.Vector(self.model_function.vector()))
-            self.collector['data'].append(dolfin.Vector(self.data_function.vector()))
-            self.collector['functional'].append(numpy_mpi.gather_broadcast(self._functional.vector().get_local())[0])
+            self.collector["model"].append(dolfin.Vector(self.model_function.vector()))
+            self.collector["data"].append(dolfin.Vector(self.data_function.vector()))
+            self.collector["functional"].append(
+                numpy_mpi.gather_broadcast(self._functional.vector().get_local())[0]
+            )
 
         return self.weight * self._functional
 
