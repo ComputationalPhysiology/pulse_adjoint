@@ -1,12 +1,19 @@
+# Package specific
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
 *~
 
+.vscode
+
 *.DS_Store
 
 # C extensions
 *.so
+
+*.mypy_cache/
 
 
 # Distribution / packaging
