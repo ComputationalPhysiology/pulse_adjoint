@@ -15,4 +15,4 @@ pre-commit
 mypy
 ipython
 sphinx_rtd_theme
-hypothesis
+fenics-pulse
