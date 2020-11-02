@@ -16,3 +16,4 @@ mypy
 ipython
 sphinx_rtd_theme
 fenics-pulse
+attrs==19.1.0
