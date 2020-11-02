@@ -22,6 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
+          python3 -m pip install setuptools
           python3 -m pip install -r requirements_dev.txt
           python3 -m pip install git+https://github.com/dolfin-adjoint/pyadjoint.git
           python3 -m pip install .
