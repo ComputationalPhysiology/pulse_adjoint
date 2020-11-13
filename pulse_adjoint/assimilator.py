@@ -4,7 +4,7 @@ import dolfin
 import dolfin_adjoint
 from pulse import annotation, numpy_mpi
 from pulse.dolfin_utils import compute_meshvolume, list_sum
-from pulse.iterate import iterate
+from pulse.iterate import constant2float, iterate
 
 from . import make_logger
 from .model_observations import BoundaryObservation
@@ -14,7 +14,7 @@ from .reduced_functional import ReducedFunctional
 from .regularization import Regularization
 
 logger = make_logger(__name__, 10)
-forward_result = namedtuple("forward_result", "functional, functional_value, converged")
+forward_result = namedtuple("forward_result", "functional, converged")
 
 
 def tuplize(lst, instance, name):
@@ -131,6 +131,7 @@ class Assimilator(object):
         functional_list = []
         for t in self.targets:
             functional_list = t.functional
+
         return list_sum(functional_list) / self._meshvol * dolfin.dx
 
     def iteration(self, control):
@@ -138,9 +139,9 @@ class Assimilator(object):
         FIXME
         TODO: Make this more elegant
         """
+        logger.info(f"Try control value {constant2float(control)}")
         for count in range(self.data_points):
 
-            print(count)
             # Stop the recording
             annotate = annotation.annotate
 
@@ -211,12 +212,11 @@ class Assimilator(object):
 
                 # Collect stuff
                 states.append(dolfin.Vector(self.problem.state.vector()))
-                functional_values.append(dolfin_adjoint.assemble(functional))
+                functional_values.append(functional)
                 functionals_time.append(functional)
 
             return forward_result(
-                functional=list_sum(functionals_time),
-                functional_value=sum(functional_values),
+                functional=dolfin_adjoint.assemble(list_sum(functionals_time)),
                 converged=True,
             )
 
@@ -230,7 +230,7 @@ class Assimilator(object):
 
         return rd
 
-    def assimilate(self):
+    def assimilate(self, min_value=None, max_value=None, tol=None):
         """
         FIXME
         """
@@ -238,7 +238,9 @@ class Assimilator(object):
         rd = self.create_reduced_functional()
 
         # Create optimal control problem
-        self.oc_problem = OptimalControl(min_value=0.1, max_value=10.0, tol=1e-2)
+        self.oc_problem = OptimalControl(
+            min_value=min_value, max_value=max_value, tol=tol
+        )
         x = numpy_mpi.gather_broadcast(self.control.vector().get_local())
 
         self.oc_problem.build_problem(rd, x)

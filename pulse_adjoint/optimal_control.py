@@ -399,7 +399,8 @@ class OptimalControl(object):
     def __init__(self, **parameters):
 
         self.parameters = OptimalControl.default_parameters()
-        self.parameters.update(**parameters)
+
+        self.parameters.update(**{k: v for k, v in parameters.items() if v is not None})
 
     @staticmethod
     def default_parameters():
@@ -448,8 +449,8 @@ class OptimalControl(object):
         )
 
         self._set_options()
-        logger.info("".center(72, "#"))
-        logger.info(" Building optimal control problem ".center(72, "#"))
+
+        logger.info("Building optimal control problem")
         # msg = (
         #     "\n\tNumber of variables:\t{}".format(nvar)
         #     + "\n\tLower bound:\t{}".format(np.min(lb))
@@ -459,7 +460,6 @@ class OptimalControl(object):
         #     + "\n\tOptimization algoritmh:\t{}\n".format(self.opt_type)
         # )
         # logger.info(msg)
-        logger.info("".center(72, "#"))
 
     def _set_options(self):
 
@@ -509,7 +509,7 @@ class OptimalControl(object):
 
         module = self.parameters["opt_lib"]
 
-        logger.info("\n" + "Starting optimization".center(100, "-"))
+        logger.info("Starting optimization")
         # logger.info(
         #     "Scale: {}, \nDerivative Scale: {}".format(
         #         self.J.scale, self.J.derivative_scale

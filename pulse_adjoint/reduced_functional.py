@@ -1,17 +1,18 @@
 import logging
-import math
 
 import dolfin
 import dolfin_adjoint
 import numpy as np
+import pyadjoint
 from pulse import MixedParameter, RegionalParameter, numpy_mpi
+from pulse.mechanicsproblem import SolverDidNotConverge
 
 from . import Text, annotation, make_logger
 
 logger = make_logger(__name__, 10)
 
 
-class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
+class ReducedFunctional(pyadjoint.ReducedFunctional):
     """
     A modified reduced functional of the `dolfin_adjoint.ReducedFuctionl`
 
@@ -88,9 +89,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
             new_control.assign(value)
         elif isinstance(value, float) or isinstance(value, int):
             numpy_mpi.assign_to_vector(new_control.vector(), np.array([value]))
-        elif isinstance(value, dolfin_adjoint.enlisting.Enlisted):
-            val_delisted = dolfin_adjoint.delist(value, self.controls)
-            new_control.assign(val_delisted)
+        # elif isinstance(value, pyadjoint.enlisting.Enlist):
 
         else:
             numpy_mpi.assign_to_vector(
@@ -131,8 +130,11 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         logger.debug("\nEvaluate forward model")
 
         # annotation.annotate = True
-        self.forward_result = self.forward_model(new_control, annotate=True)
-        crash = not self.forward_result.converged
+        crash = False
+        try:
+            self.forward_result = self.forward_model(new_control, annotate=True)
+        except SolverDidNotConverge:
+            crash = True
 
         forward_time = t.stop()
         self.collector["forward_times"].append(forward_time)
@@ -159,9 +161,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         # dolfin_adjoint.ReducedFunctional.__init__(
         #     self, dolfin_adjoint.Functional(self.forward_result.functional), control
         # )
-        dolfin_adjoint.ReducedFunctional.__init__(
-            self, self.forward_result.functional, control
-        )
+        super().__init__(self.forward_result.functional, control)
 
         if crash:
             # This exection is thrown if the solver uses more than x steps.
@@ -181,12 +181,12 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
             self.collector["nr_crashes"] += 1
 
         else:
-            func_value = self.forward_result.functional_value
+            func_value = self.forward_result.functional
 
         # grad_norm = None if len(self.grad_norm_scaled) == 0 \
         # else self.grad_norm_scaled[-1]
 
-        self.collector["functional_values"].append(func_value * self.scale)
+        self.collector["functional_values"].append(float(func_value) * self.scale)
         self.collector["controls"].append(dolfin.Vector(self.control.vector()))
 
         logger.debug(Text.yellow("Stop annotating"))
@@ -217,7 +217,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         elif isinstance(value, float) or isinstance(value, int):
             numpy_mpi.assign_to_vector(control_new.vector(), np.array([value]))
 
-        elif isinstance(value, dolfin_adjoint.enlisting.Enlisted):
+        elif isinstance(value, pyadjoint.enlisting.Enlist):
             val_delisted = dolfin_adjoint.delist(value, self.controls)
             control_new.assign(val_delisted)
 
@@ -263,8 +263,8 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
             else self.collector["gradient_norm_scaled"][-1]
         )
 
-        func_value = self.forward_result.functional_value
-        print("Gradient = {}, Func value = {}".format(grad_norm, func_value))
+        func_value = float(self.forward_result.functional)
+        logger.info("Gradient = {}, Func value = {}".format(grad_norm, func_value))
         # logger.info(utils.print_line(self.for_res, self.iter, grad_norm, func_value))
 
     def derivative(self, *args, **kwargs):
@@ -274,10 +274,9 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 
         t = dolfin.Timer("Backward run")
         t.start()
-
-        out = dolfin_adjoint.ReducedFunctional.derivative(self)
+        out = super().derivative()
         back_time = t.stop()
-        logger.debug(
+        logger.info(
             (
                 "Evaluating gradient done. "
                 "Time to evaluate = {} seconds".format(back_time)
@@ -285,21 +284,18 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
         )
         self.collector["backward_times"].append(back_time)
 
-        for num in out[0].vector().array():
-            if math.isnan(num):
-                raise Exception("NaN in adjoint gradient calculation.")
-
         # Multiply with some small number to that we take smaller steps
-        gathered_out = numpy_mpi.gather_broadcast(out[0].vector().array())
+        gathered_out = numpy_mpi.gather_broadcast(out.vector().get_local())
 
         self.collector["gradient_norm"].append(np.linalg.norm(gathered_out))
         self.collector["gradient_norm_scaled"].append(
             np.linalg.norm(gathered_out) * self.scale * self.derivative_scale
         )
-        logger.debug(
+        logger.info(
             ("|dJ|(actual) = {}\t" "|dJ|(scaled) = {}").format(
                 self.collector["gradient_norm"][-1],
                 self.collector["gradient_norm_scaled"][-1],
             )
         )
+
         return self.scale * gathered_out * self.derivative_scale
