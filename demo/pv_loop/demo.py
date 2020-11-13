@@ -173,7 +173,7 @@ def main():
 
     fig, ax = plt.subplots(2, 1)
     ax[0].plot(volume_data, pressure_data, label="Data")
-    ax[0].plot(computed_volumes, pressure_data, label="Data")
+    ax[0].plot(computed_volumes, pressure_data, label="Model")
     ax[0].set_title(f"Material parameter {optimzed_material_paramter:.2f}")
     ax[1].plot(activation_parameters, marker="o")
     ax[1].set_title("Active strain")

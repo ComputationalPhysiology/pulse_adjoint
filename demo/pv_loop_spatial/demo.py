@@ -215,7 +215,7 @@ def main():
 
     fig, ax = plt.subplots()
     ax.plot(volume_data, pressure_data, label="Data")
-    ax.plot(computed_volumes, pressure_data, label="Data")
+    ax.plot(computed_volumes, pressure_data, label="Model")
     ax.set_xlabel("Volume")
     ax.set_xlabel("Pressure")
     ax.legend()
