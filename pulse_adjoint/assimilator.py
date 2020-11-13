@@ -130,9 +130,11 @@ class Assimilator(object):
 
         functional_list = []
         for t in self.targets:
-            functional_list = t.functional
+            functional_list.append(t.functional)
 
-        return list_sum(functional_list) / self._meshvol * dolfin.dx
+        functional_list.append(self.regularization.functional)
+
+        return list_sum(functional_list)
 
     def iteration(self, control):
         """
@@ -216,7 +218,11 @@ class Assimilator(object):
                 functionals_time.append(functional)
 
             return forward_result(
-                functional=dolfin_adjoint.assemble(list_sum(functionals_time)),
+                functional=dolfin_adjoint.assemble(
+                    list_sum(functionals_time)
+                    / self._meshvol
+                    * dolfin.dx(domain=self.problem.geometry.mesh)
+                ),
                 converged=True,
             )
 

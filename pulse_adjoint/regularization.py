@@ -1,53 +1,35 @@
 import dolfin
 import dolfin_adjoint
-from pulse.dolfin_utils import compute_meshvolume
 
 from . import make_logger
 
 logger = make_logger(__name__, 10)
 
 
-def L2(f, meshvol=None, dx=None):
-
-    if meshvol is None:
-        meshvol = dolfin.Constant(1.0)
-    if dx is None:
-        dx = dolfin.dx
-
-    return (dolfin.inner(f, f) / meshvol) * dx
+def L2(f):
+    return dolfin.inner(f, f)
 
 
-def H0(f, meshvol=None, dx=None):
-
-    if meshvol is None:
-        meshvol = dolfin.Constant(1.0)
-    if dx is None:
-        dx = dolfin.dx
-
-    return (dolfin.inner(dolfin.grad(f), dolfin.grad(f)) / meshvol) * dx
+def H0(f):
+    return dolfin.inner(dolfin.grad(f), dolfin.grad(f))
 
 
 def H1(f, meshvol=None, dx=None):
-    return L2(f, meshvol, dx) + H0(f, meshvol, dx)
+    return L2(f) + H0(f)
 
 
-def regional(f, meshvol=None, dx=None):
-
-    if meshvol is None:
-        meshvol = dolfin.Constant(1.0)
-    if dx is None:
-        dx = dolfin.dx
+def regional(f):
 
     expr_arr = ["0"] * f.value_size()
 
     # Sum all the components to find the mean
     expr_arr[0] = "1"
-    f_sum = dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1))
+    f_sum = dolfin.dot(f, dolfin_adjoint.Expression(tuple(expr_arr), degree=1))
     expr_arr[0] = "0"
 
     for i in range(1, f.value_size()):
         expr_arr[i] = "1"
-        f_sum += dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1))
+        f_sum += dolfin.dot(f, dolfin_adjoint.Expression(tuple(expr_arr), degree=1))
         expr_arr[i] = "0"
 
     # Compute the mean
@@ -56,19 +38,19 @@ def regional(f, meshvol=None, dx=None):
     # Compute the variance
     expr_arr[0] = "1"
     f_reg = (
-        dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1)) - f_avg
+        dolfin.dot(f, dolfin_adjoint.Expression(tuple(expr_arr), degree=1)) - f_avg
     ) ** 2 / f.value_size()
 
     expr_arr[0] = "0"
     for i in range(1, f.value_size()):
         expr_arr[i] = "1"
         f_reg += (
-            dolfin.dot(f, dolfin.Expression(tuple(expr_arr), degree=1)) - f_avg
+            dolfin.dot(f, dolfin_adjoint.Expression(tuple(expr_arr), degree=1)) - f_avg
         ) ** 2 / f.value_size()
         expr_arr[i] = "0"
 
     # Create a functional term
-    return (f_reg / meshvol) * dx
+    return f_reg
 
 
 class Regularization(object):
@@ -91,31 +73,23 @@ class Regularization(object):
         'regional']. Default: 'L2'
     """
 
-    def __init__(self, f, mesh, weight=1.0, reg_type="L2"):
+    def __init__(self, f, weight=1.0, reg_type="L2"):
         self.f = f
         self.weight = dolfin_adjoint.Constant(weight, name="Regularization weight")
         self.reg_type = reg_type
 
-        if mesh is not None:
-            self._meshvol = compute_meshvolume(mesh)
-            self._dx = dolfin.dx(domain=mesh)
-        else:
-            self._meshvol = 1.0
-            self._dx = dolfin.dx
-
-        self.form = self._form()
-
-    def _form(self):
+    @property
+    def form(self):
         if self.reg_type == "":
             return dolfin_adjoint.Constant(0.0)
         elif self.reg_type == "L2":
-            return L2(self.f, self._meshvol, self._dx)
+            return L2(self.f)
         elif self.reg_type == "H0":
-            return H0(self.f, self._meshvol, self._dx)
+            return H0(self.f)
         elif self.reg_type == "H1":
-            return H1(self.f, self._meshvol, self._dx)
+            return H1(self.f)
         elif self.reg_type == "regional":
-            return regional(self.f, self._meshvol, self._dx)
+            return regional(self.f)
         else:
             raise ValueError("Unknown regularization type {}".format(self.reg_type))
 
