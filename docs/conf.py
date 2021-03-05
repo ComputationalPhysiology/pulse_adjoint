@@ -17,16 +17,16 @@
 # relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
 #
-import os
-import sys
-from unittest import mock
+# import os
+# import sys
+# from unittest import mock
 
-sys.modules["dolfin"] = mock.Mock()
-sys.modules["pulse"] = mock.Mock()
+# sys.modules["dolfin"] = mock.Mock()
+# sys.modules["pulse"] = mock.Mock()
 
-sys.path.insert(0, os.path.abspath(".."))
+# sys.path.insert(0, os.path.abspath(".."))
 
-import pulse_adjoint  # noqa: E402
+# import pulse_adjoint  # noqa: E402
 
 # -- General configuration ---------------------------------------------
 
@@ -67,9 +67,9 @@ author = "Henrik Finsberg"
 # the built documents.
 #
 # The short X.Y version.
-version = pulse_adjoint.__version__
+# version = pulse_adjoint.__version__
 # The full version, including alpha/beta/rc tags.
-release = pulse_adjoint.__version__
+# release = pulse_adjoint.__version__
 
 
 intersphinx_mapping = {
