@@ -19,11 +19,10 @@
 #
 import os
 import sys
+from unittest import mock
 
-# from unittest import mock
-
-
-autodoc_mock_imports = ["pulse", "dolfin"]
+sys.modules["dolfin"] = mock.Mock()
+sys.modules["pulse"] = mock.Mock()
 
 sys.path.insert(0, os.path.abspath(".."))
 
