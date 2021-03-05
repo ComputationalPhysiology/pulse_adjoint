@@ -21,7 +21,9 @@ import os
 import sys
 from unittest import mock
 
-sys.modules["dolfin"] = mock.Mock()
+dolfin = mock.Mock()
+dolfin.__version__ = "2019"
+sys.modules["dolfin"] = dolfin
 sys.path.insert(0, os.path.abspath(".."))
 
 import pulse_adjoint  # noqa: E402
