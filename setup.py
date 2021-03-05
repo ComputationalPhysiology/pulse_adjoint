@@ -21,7 +21,13 @@ REQUIRES_PYTHON = ">=3.6"
 VERSION = "2019.2"
 
 # What packages are required for this module to be executed?
-REQUIRED = ["h5py", "numpy", "scipy"]
+REQUIRED = [
+    "h5py",
+    "numpy",
+    "scipy",
+    "dolfin-adjoint @ git+https://github.com/dolfin-adjoint/pyadjoint.git@master",
+    "fenics-pulse",
+]
 
 # What packages are optional?
 EXTRAS = {

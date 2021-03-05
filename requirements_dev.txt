@@ -5,14 +5,14 @@ tox
 isort
 coverage
 Sphinx
+twine
 pytest
-pytest-runner
 pytest-cov
-pytest-xdist
 pytest-sugar
 black
 pre-commit
 mypy
 ipython
 sphinx_rtd_theme
-fenics-pulse
+pdbpp
+pandoc

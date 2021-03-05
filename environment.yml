@@ -1,5 +1,0 @@
-name: pulse_adjoint
-channels:
-  - conda-forge
-dependencies:
-    - pulse
