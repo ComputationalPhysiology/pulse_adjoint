@@ -12,7 +12,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/ComputationalPhysiology/pulse_adjoint/issues.
+Report bugs at https://github.com/finsberg/pulse_adjoint/issues.
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ Submit Feedback
 ~~~~~~~~~~~~~~~
 
 The best way to send feedback is to file an issue at
-https://github.com/ComputationalPhysiology/pulse_adjoint/issues.
+https://github.com/finsberg/pulse_adjoint/issues.
 
 If you are proposing a feature:
 
@@ -60,8 +60,7 @@ Get Started!
 Ready to contribute? Here’s how to set up pulse_adjoint for local
 development.
 
-1. Fork the pulse_adjoint repo on GitHub (Note: if you are part of the team working
-on pulse-adjoint then you can work on the original repo)
+1. Fork the pulse_adjoint repo on GitHub.
 
 2. Clone your fork locally:
 
@@ -74,17 +73,9 @@ on pulse-adjoint then you can work on the original repo)
    .. code:: shell
 
       $ cd pulse_adjoint/
-      # Create virtual environment
       $ python -m venv venv
       $ source venv/bin/activate
-      $ make dev
-
-   This last command is a development install, which will install a lot of
-   packages that are only used during development, as well as installing
-   pulse-adjoint in editable mode (i.e the same as :code:`python -m pip install . -e`).
-   The development install also installs a `pre-commit`_ hook which will run some
-   tests every time you commit.
-
+      $ python -m pip install -e .
 
 4. Create a branch for local development:
 
@@ -95,7 +86,8 @@ on pulse-adjoint then you can work on the original repo)
    Now you can make your changes locally.
 
 5. When you’re done making changes, check that your changes pass flake8,
-   static type checking and the tests:
+   static type checking and the tests, including testing other Python
+   versions with tox:
 
    .. code:: shell
 
@@ -103,6 +95,7 @@ on pulse-adjoint then you can work on the original repo)
       $ make type
       $ make test
 
+   To get flake8 and tox, just pip install them into your virtualenv.
 
 6. Commit your changes and push your branch to GitHub:
 
@@ -114,10 +107,6 @@ on pulse-adjoint then you can work on the original repo)
 
 7. Submit a pull request through the GitHub website.
 
-
-.. _pre-commit: https://pre-commit.com
-
-
 Pull Request Guidelines
 -----------------------
 
@@ -127,29 +116,18 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated.
    Put your new functionality into a function with a docstring, and add
    the feature to the list in README.rst.
-3. The pull request should work for Python 3.7 and 3.8. Check circle CI
-   at https://app.circleci.com/pipelines/github/ComputationalPhysiology/pulse_adjoint/
+3. The pull request should work for Python 3.7 and 3.8. Check
+   https://github.com/finsberg/pulse_adjoint/actions to make sure all
+   tests are passing. Python versions.
 
 Tips
 ----
 
-1. Use a code editor with linting enabled which helps you to catch typo bugs
-
-2. Use type annotations - they can be a real pain, but will save you a lot of times
-   and it makes it development so much better because your editor can use type hints to
-   do autocompletion.
-
-3. Commit often - it is always a pain to commit when lot of stuff is changed.
-
-4. To run a subset of tests starting with ``test_something`` do:
+To run a subset of tests starting with ``test_something`` do:
 
 .. code:: shell
 
    $ python -m pytest -k test_something
-
-5. When pushing to the repo, try to increase the code coverage by writing one
-   more test case. Check the code coverage at
-   https://codecov.io/gh/ComputationalPhysiology/pulse_adjoint
 
 Deploying
 ---------
@@ -163,4 +141,4 @@ changes are committed (including an entry in HISTORY.md). Then run:
    $ git push
    $ git push --tags
 
-Create a new pypi package using the :code:`make release` command.
+Travis will then deploy to PyPI if tests pass.
