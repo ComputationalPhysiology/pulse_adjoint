@@ -9,8 +9,10 @@ that can be used to solve the optimal control problem
 
    \mathrm{subject}\;\mathrm{to:} \: \delta\Pi(\mathbf{u},p,m) = 0
 
+Example of usage
+----------------
 
-**Example of usage**::
+.. code:: python
 
   # Suppose you allready have initialized you reduced functional (`J`)
   # with the control parameter (`paramvec`)
@@ -393,7 +395,7 @@ class OptimalControl(object):
     """
     A class used for solving an optimal control problem
     For possible parameters in the constructor see
-    :py:meth:`OptimalControl.default_parameters´
+    `OptimalControl.default_parameters`
     """
 
     def __init__(self, **parameters):

@@ -10,7 +10,7 @@ class BoundaryObservation(object):
     Class of observations that should be enforced as a boundary condition,
     e.g pressure.
 
-    Arguemnts
+    Arguments
     ---------
     bc : :py:class:`pulse.NeumannBC`
         The boundary condition
