@@ -54,10 +54,7 @@ type: ## Run mypy
 	python3 -m mypy pulse_adjoint tests
 
 test: ## run tests quickly with the default Python
-	python3 -m pytest --cov=pulse_adjoint tests
-
-test-all: ## run tests on every Python version with tox
-	tox
+	python3 -m pytest --cov=pulse_adjoint tests -v
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source pulse_adjoint -m pytest
@@ -66,10 +63,13 @@ coverage: ## check code coverage quickly with the default Python
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/source/pulse_adjoint.rst
-	rm -f docs/source/modules.rst
-	rm -f docs/source/pulse_adjoint.scripts.rst
-	sphinx-apidoc -o docs/source pulse_adjoint
+	rm -f docs/pulse_adjoint.rst
+	rm -f docs/modules.rst
+	pandoc README.md -o docs/readme.rst
+	pandoc HISTORY.md -o docs/history.rst
+	pandoc CONTRIBUTING.md -o docs/contributing.rst
+	pandoc AUTHORS.md -o docs/authors.rst
+	sphinx-apidoc -o docs/ pulse_adjoint
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	# $(BROWSER) docs/build/html/index.html
@@ -93,3 +93,6 @@ dev: clean ## Just need to make sure that libfiles remains
 	python3 -m pip install -r requirements_dev.txt
 	python3 -m pip install -e .
 	pre-commit install
+
+bump:
+	bump2version patch
