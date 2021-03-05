@@ -54,7 +54,7 @@ type: ## Run mypy
 	python3 -m mypy pulse_adjoint tests
 
 test: ## run tests quickly with the default Python
-	python3 -m pytest --cov=pulse_adjoint tests -v
+	python3 -m pytest
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source pulse_adjoint -m pytest
