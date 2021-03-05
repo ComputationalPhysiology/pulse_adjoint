@@ -23,7 +23,6 @@ from unittest import mock
 
 dolfin = mock.MagicMock()
 dolfin.__version__ = "2019"
-dolfin.parameters = []
 sys.modules["dolfin"] = dolfin
 sys.path.insert(0, os.path.abspath(".."))
 
