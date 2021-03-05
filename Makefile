@@ -57,9 +57,6 @@ test: ## run tests quickly with the default Python
 	python3 -m pytest
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source pulse_adjoint -m pytest
-	coverage report -m
-	coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
