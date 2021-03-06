@@ -10,7 +10,7 @@ Pulse-Adjoint is an extension of the [pulse](https://github.com/ComputationalPhy
 
 
 ## Note
-This is a full rewriting of the code in the [following repo](https://github.com/ComputationalPhysiology/pulse_adjoint). Note that the version in this repo is experimental an might contains several bugs. If you encounter bugs we would appreciate if you could file an issue.
+This is a full rewriting of the code in the [following repo](https://github.com/ComputationalPhysiology/pulse_adjoint). Note that the version in this repo is experimental and might contain several bugs. If you encounter bugs we would appreciate if you could file an issue.
 
 
 ## Installation
