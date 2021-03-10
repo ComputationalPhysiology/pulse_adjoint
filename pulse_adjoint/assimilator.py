@@ -13,7 +13,6 @@ from .optimization_targets import OptimizationTarget
 from .reduced_functional import ReducedFunctional
 from .regularization import Regularization
 
-print("Hello from assimilator")
 logger = make_logger(__name__, 10)
 forward_result = namedtuple("forward_result", "functional, converged")
 
@@ -22,6 +21,7 @@ def tuplize(lst, instance, name):
 
     if isinstance(lst, instance):
         # There is only one target
+
         return (lst,)
     else:
         msg = (
