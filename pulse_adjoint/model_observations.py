@@ -32,7 +32,7 @@ class BoundaryObservation(object):
         self.__len__ = len(data)
         self.reset()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ("{self.__class__.__name__}" "({self.bc}, {self.data})").format(
             self=self
         )
