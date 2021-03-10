@@ -32,12 +32,12 @@ class BoundaryObservation(object):
         self.__len__ = len(data)
         self.reset()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ("{self.__class__.__name__}" "({self.bc}, {self.data})").format(
             self=self
         )
 
-    def reset(self):
+    def reset(self) -> None:
         self._count = -1
         name = "Start value Boundary {}".format(self.bc)
         self.bc.traction.assign(dolfin_adjoint.Constant(self._start_value, name=name))
