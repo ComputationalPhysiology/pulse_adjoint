@@ -1,23 +1,28 @@
-# A basic example of how to use pulse_adjoint to assimilate 
-# clinical volume data into a Bi-ventricular heart model.   
-# The control parameters are one material parameter and  
+# A basic example of how to use pulse_adjoint to assimilate
+# clinical volume data into a Bi-ventricular heart model.
+# The control parameters are one material parameter and
 # and an activation parameter. These parameters are spatially
-# resolved on the LV, RV and Septum. 
-# 
+# resolved on the LV, RV and Septum.
+#
 #
 # This demo shows how to
 # * Set up the forward problem (using code from Pulse)
 # * Define spatially resolved control parameters on the LV, RV and Septum
 # * Define multiple model observations
-# * Use the assimilator class in pulse_adjoint to fit the model 
+# * Use the assimilator class in pulse_adjoint to fit the model
 
 # Import the necessary packages
 import dolfin
 import dolfin_adjoint
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    print("Matplotlib not installed - plotting not possible")
 import pulse
 
 import pulse_adjoint
+
 
 # Define the forward problem
 def create_problem():
@@ -29,50 +34,53 @@ def create_problem():
     regional_mat = pulse.RegionalParameter(geometry.cfun)
 
     # Assign regional values of the material control parameter
-    regional_mat.vector()[0] = 0.5 # LVFW 
-    regional_mat.vector()[1] = 0.5 # SEPT
-    regional_mat.vector()[2] = 0.5 # RVFW
+    regional_mat.vector()[0] = 0.5  # LVFW
+    regional_mat.vector()[1] = 0.5  # SEPT
+    regional_mat.vector()[2] = 0.5  # RVFW
 
-    # Define the material control function 
-    material_control = dolfin_adjoint.Function(
-        dolfin.FunctionSpace(geometry.mesh, "CG", 1), name="material"
-    )
-    
-    # Assign regional material parameter to material control function
-    material_control.assign(regional_mat)
+    # Define the material control function
+    # material_control = dolfin_adjoint.Function(
+    #     dolfin.FunctionSpace(geometry.mesh, "CG", 1), name="material"
+    # )
+
+    # # Assign regional material parameter to material control function
+    # material_control.assign(regional_mat)
 
     # Define spatially resolved activation control parameter
     regional_activation = pulse.RegionalParameter(geometry.cfun)
+    # from IPython import embed
 
+    # embed()
+    # exit()
     # Assign regional values of the activation control parameter
-    regional_activation.vector()[0] = 0 # LVFW
-    regional_activation.vector()[1] = 0 # SEPT
-    regional_activation.vector()[2] = 0 # RVFW
+    regional_activation.vector()[0] = 0  # LVFW
+    regional_activation.vector()[1] = 0  # SEPT
+    regional_activation.vector()[2] = 0  # RVFW
 
-    # Define the activation control function 
-    activation_control = dolfin_adjoint.Function(
-        dolfin.FunctionSpace(geometry.mesh, "CG", 1), name="activation"
-    )
+    # Define the activation control function
+    # activation_control = dolfin_adjoint.Function(
+    #     dolfin.FunctionSpace(geometry.mesh, "CG", 1), name="activation"
+    # )
 
-    # Assign regional activation parameter to activation control function
-    activation_control.assign(regional_activation)
+    # # Assign regional activation parameter to activation control function
+    # activation_control.assign(regional_activation)
 
     # Define the parameters of the material model
     matparams = pulse.HolzapfelOgden.default_parameters()
-    
-    # Update parameter in material model 
-    matparams["a"] = material_control
+
+    # Update parameter in material model
+    matparams["a"] = regional_mat
 
     # Define the microstructure
     f0 = dolfin_adjoint.Function(geometry.f0.function_space())
     f0.assign(geometry.f0)
-    #s0 = dolfin_adjoint.Function(geometry.s0.function_space())
-    #s0.assign(geometry.s0)
-    #n0 = dolfin_adjoint.Function(geometry.n0.function_space())
-    #n0.assign(geometry.n0)
+    # s0 = dolfin_adjoint.Function(geometry.s0.function_space())
+    # s0.assign(geometry.s0)
+    # n0 = dolfin_adjoint.Function(geometry.n0.function_space())
+    # n0.assign(geometry.n0)
 
     material = pulse.HolzapfelOgden(
-        activation=activation_control,
+        activation=regional_activation,
         parameters=matparams,
         f0=f0,
         s0=None,
@@ -122,8 +130,8 @@ def create_problem():
 
     # Create the problem
     problem = pulse.MechanicsProblem(geometry, material, bcs)
-
-    return problem, material_control, activation_control
+    problem.solve()
+    return problem, regional_mat, regional_activation
 
 
 # Define the inverse problem
@@ -140,7 +148,7 @@ def main():
     disp_file.write_checkpoint(
         U, "displacement", 0, dolfin.XDMFFile.Encoding.HDF5, False
     )
-    
+
     # Store the model computed cavity volumes
     computed_volumes_LV = [problem.geometry.cavity_volume(chamber="lv")]
     computed_volumes_RV = [problem.geometry.cavity_volume(chamber="rv")]
@@ -148,7 +156,7 @@ def main():
     # Create volume observations
     endo_LV = problem.geometry.markers["ENDO_LV"][0]
     endo_RV = problem.geometry.markers["ENDO_RV"][0]
-    
+
     volume_model_LV = pulse_adjoint.model_observations.VolumeObservation(
         problem.geometry.mesh, problem.geometry.ds(endo_LV)
     )
@@ -156,7 +164,7 @@ def main():
     volume_model_RV = pulse_adjoint.model_observations.VolumeObservation(
         problem.geometry.mesh, problem.geometry.ds(endo_RV)
     )
-    
+
     # Define the clinical volume and pressure data
     passive_volume_data_LV = [2.511304019359619, 2.8]
     active_volume_data_LV = [2.8, 1.5, 1.2, 1.2, 2.8]
@@ -175,13 +183,13 @@ def main():
     pressure_data_RV = passive_pressure_data_RV + active_pressure_data_RV
 
     if 0:
-        fig, (ax1, ax2) = plt.subplots(1,2)
+        fig, (ax1, ax2) = plt.subplots(1, 2)
         ax1.set_title("LV PV Loop")
         ax2.set_title("RV PV Loop")
         ax1.plot(volume_data_LV, pressure_data_LV)
         ax2.plot(volume_data_RV, pressure_data_LV)
-        #ax.set_xlabel("Volume [ml]")
-        #ax.set_ylabel("Pressure [kPa]")
+        # ax.set_xlabel("Volume [ml]")
+        # ax.set_ylabel("Pressure [kPa]")
         plt.show()
 
     # ------------- Passive phase ----------------
@@ -225,7 +233,7 @@ def main():
 
     # Solve the inverse problem for the passive phase
     optimal_control = assimilator.assimilate(min_value=0.1, max_value=10.0, tol=1e-6)
-    
+
     # Update the material parameter to the optimized value
     material_control.vector()[:] = optimal_control.optimal_control
     dolfin.File("material.pvd") << material_control
@@ -254,11 +262,11 @@ def main():
 
     # ------------- Active phase ----------------
 
-    # Define regularization term for the active phase optimization 
+    # Define regularization term for the active phase optimization
     gamma_regularization = pulse_adjoint.Regularization(
         activation_control, weight=1e-4, reg_type="L2"
     )
-    
+
     # Create a file for checkpointing
     gamma_file = dolfin.XDMFFile("activation.xdmf")
     gamma_file.write_checkpoint(
@@ -266,16 +274,24 @@ def main():
     )
 
     for i, (volume_lv, pressure_lv, volume_rv, pressure_rv) in enumerate(
-        zip(active_volume_data_LV, active_pressure_data_LV,
-        active_volume_data_RV, active_pressure_data_RV),
+        zip(
+            active_volume_data_LV,
+            active_pressure_data_LV,
+            active_volume_data_RV,
+            active_pressure_data_RV,
+        ),
     ):
         print(
             f"Try to fit LV volume : {volume_lv} with LV pressure {pressure_lv}\n"
             f"Try to fit RV volume : {volume_rv} with RV pressure {pressure_rv}"
         )
-        
-        volume_target_LV = pulse_adjoint.OptimizationTarget([volume_lv], volume_model_LV)
-        volume_target_RV = pulse_adjoint.OptimizationTarget([volume_rv], volume_model_RV)
+
+        volume_target_LV = pulse_adjoint.OptimizationTarget(
+            [volume_lv], volume_model_LV
+        )
+        volume_target_RV = pulse_adjoint.OptimizationTarget(
+            [volume_rv], volume_model_RV
+        )
 
         pressure_obs_LV = pulse_adjoint.model_observations.BoundaryObservation(
             problem.bcs.neumann[0], [pressure_lv], start_value=prev_pressure_LV
@@ -321,16 +337,17 @@ def main():
             U, "displacement", i + 2, dolfin.XDMFFile.Encoding.HDF5, True
         )
 
-    fig, (ax1, ax2) = plt.subplots(1,2)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
     ax1.set_title("LV PV Loop")
     ax2.set_title("RV PV Loop")
     ax1.plot(volume_data_LV, pressure_data_LV, label="Data")
     ax1.plot(computed_volumes_LV, pressure_data_LV, label="Model")
     ax2.plot(volume_data_RV, pressure_data_RV, label="Data")
     ax2.plot(computed_volumes_RV, pressure_data_RV, label="Model")
-    #ax.set_xlabel("Volume")
-    #ax.set_ylabel("Pressure")
-    ax.legend()
+    # ax.set_xlabel("Volume")
+    # ax.set_ylabel("Pressure")
+    ax1.legend()
+    ax2.legend()
     fig.savefig("results.png")
 
 
