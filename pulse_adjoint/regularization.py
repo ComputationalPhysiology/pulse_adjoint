@@ -95,7 +95,7 @@ class Regularization(object):
 
     @classmethod
     def zero(cls):
-        return cls(None, None, weight=0.0, reg_type="")
+        return cls(None, weight=0.0, reg_type="")
 
     @property
     def functional(self):
