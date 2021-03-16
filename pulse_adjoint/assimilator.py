@@ -21,6 +21,7 @@ def tuplize(lst, instance, name):
 
     if isinstance(lst, instance):
         # There is only one target
+
         return (lst,)
     else:
         msg = (
