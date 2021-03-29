@@ -1,5 +1,6 @@
 import dolfin
 import dolfin_adjoint
+import fixtures
 import numpy as np
 import pulse
 import pytest
@@ -15,6 +16,25 @@ V_cg2 = dolfin.VectorFunctionSpace(geo.mesh, "CG", 2)
 
 def norm(v):
     return np.linalg.norm(v)
+
+
+def test_volume_observation_is_same_as_geometry_cavity_volume_zero():
+
+    problem, control = fixtures.create_problem("R_0")
+    u, p = dolfin.split(problem.state)
+
+    volume_obs = VolumeObservation(mesh=geo.mesh, dmu=geo.ds(geo.markers["ENDO"]))
+    assert abs(problem.geometry.cavity_volume(u=u) - float(volume_obs(u))) < 1e-12
+
+
+def test_volume_observation_is_same_as_geometry_cavity_volume_nonzero():
+
+    problem, control = fixtures.create_problem("R_0")
+    pulse.iterate.iterate(problem, problem.bcs.neumann[0].traction, 0.1)
+    u, p = dolfin.split(problem.state)
+
+    volume_obs = VolumeObservation(mesh=geo.mesh, dmu=geo.ds(geo.markers["ENDO"]))
+    assert abs(problem.geometry.cavity_volume(u=u) - float(volume_obs(u))) < 1e-12
 
 
 @pytest.mark.parametrize("approx", ("project", "interpolate", "original"))
@@ -135,4 +155,5 @@ def test_boundary_observation():
 
 
 if __name__ == "__main__":
-    test_boundary_observation()
+    # test_boundary_observation()
+    test_volume_observation_is_same_as_geometry_cavity_volume_nonzero()
