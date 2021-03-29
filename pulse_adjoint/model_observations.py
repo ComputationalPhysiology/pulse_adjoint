@@ -132,7 +132,7 @@ class VolumeObservation(ModelObservation):
         dmu,
         approx="project",
         displacement_space="CG_2",
-        interpolation_space="CG_1",
+        interpolation_space="CG_2",
         description="",
     ):
         ModelObservation.__init__(
@@ -264,7 +264,7 @@ class StrainObservation(ModelObservation):
         F_ref=None,
         isochoric=True,
         displacement_space="CG_2",
-        interpolation_space="CG_1",
+        interpolation_space="CG_2",
         description="",
     ):
 
